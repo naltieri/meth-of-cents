@@ -48,24 +48,23 @@ function analyticCenter(x0,F, alpha, tol)
 		return
 	end
 
-	g = zeros(1,size(F,3));
-	for i = 1:size(F,3)
-	    g[i] = -trace(pinv(Fx)*F[:,:,i])
+	g = zeros(1,size(F,3)-1);
+	for i = 2:size(F,3)
+	    g[i-1] = -trace(pinv(Fx)*F[:,:,i])
 	end
 	g = g';
 
-	H = zeros(size(F,3),size(F,3))
-	for i = 1:size(F,3)
-	    for j = 1:size(F,3)
-	        H[i,j] = trace(pinv(Fx) *F[:,:,i]* pinv(Fx)* F[:,:,j]);
+	H = zeros(size(F,3)-1,size(F,3)-1)
+	for i = 2:size(F,3)
+	    for j = 2:size(F,3)
+	        H[i-1,j-1] = trace(pinv(Fx) *F[:,:,i]* pinv(Fx)* F[:,:,j]);
 	    end
 	end
 	objHist = log(det(pinv(Fx)));
 	gHist = norm(g,2);
 
 	while norm(g,2) > tol
-
-		x = x - alpha * pinv(H) *g;
+		x[2:end] = x[2:end] - alpha * pinv(H) *g;
 
 		Fx = zeros(size(F,1),size(F,2))
 		for i = 1:size(F,3)
@@ -78,15 +77,15 @@ function analyticCenter(x0,F, alpha, tol)
 		end
 
 
-		for i = 1:size(F,3)
-		    g[i] = - trace(pinv(Fx)*F[:,:,i]);
+		for i = 2:size(F,3)
+		    g[i-1] = - trace(pinv(Fx)*F[:,:,i]);
 		end
 		
 
 
-		for i = 1:size(F,3)
-		    for j = 1:size(F,3)
-		        H[i,j] = trace(pinv(Fx) *F[:,:,i] * pinv(Fx)* F[:,:,j]);
+		for i = 2:size(F,3)
+		    for j = 2:size(F,3)
+		        H[i-1,j-1] = trace(pinv(Fx) *F[:,:,i] * pinv(Fx)* F[:,:,j]);
 		    end
 	    end
 	    gHist = [gHist,norm(g,2)];
