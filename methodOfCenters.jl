@@ -76,24 +76,12 @@ function analyticCenter(x0,F, alpha, tol)
 
 	while (norm(g,2) > tol)
 
-		# println(iter)
-		# iter += 1;
-
-
-		# println(xPrev)
-		# println(x)
-
 		if (norm(xPrev - x,2) <= 0.0)
-			# println(xPrev)
-			# println(x)
-			# println(norm(xPrev - x,2))
 			break
 		end
 
 
 		xPrev = copy(x);
-
-		#println(norm(x[2:end] - x[2:end] - alpha * pinv(H) *g))
 		x[2:end] = x[2:end] - alpha * pinv(H) *g;
 
 
@@ -147,10 +135,6 @@ function analyticCenter(x0,F, alpha, tol)
 
 	end
 
-	# if (norm(xPrev - x,2) == 0)
-	# 	println("WHYYY GOD WHYYY?")
-	# end
-
 	xOpt = x;
 
 	return(xOpt)
@@ -159,7 +143,6 @@ end
 
 
 function methOfCents( A,B,C, lambda,x, theta)
-		tic()
 		tol = 10.0^(-7)
 		lambdaPrev = Inf;
 		x = [1 ; x ]
@@ -189,7 +172,7 @@ function methOfCents( A,B,C, lambda,x, theta)
 
 
 	end
-	toc()
+	
 	return(x,lambda)
 end
 
