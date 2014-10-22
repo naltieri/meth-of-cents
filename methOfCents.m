@@ -1,17 +1,16 @@
 function [ lambdaOpt,xOpt ] = methOfCents( A,B,C, lambda,x, theta)
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
-
+lambdaPrev = Inf;
+tol = 10^(-7);
 x = [1;x];
 
 Ax = Mx(A,x);
 Bx = Mx(B,x);
 Cx = Mx(C,x);
 
-for i = 1:25,
-    
-    disp(i)
-    
+while lambdaPrev - lambda > tol,
+    lambdaPrev = lambda;
     %Lambda Step
     lambda = (1-theta)*max(eigs(Ax,Bx))+ theta*lambda;
     

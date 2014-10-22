@@ -34,8 +34,15 @@ end
 
 
 function analyticCenter(x0,F, alpha, tol)
+	# iter = 1;
 
+	xPrev = zeros(3,1);
+	xPrev[1] = Inf;
+	xPrev[2] = Inf;
+	xPrev[3] = Inf; 
 	x = [x0];
+
+
 
 	Fx = zeros(size(F,1),size(F,2));
 
@@ -63,8 +70,33 @@ function analyticCenter(x0,F, alpha, tol)
 	objHist = log(det(pinv(Fx)));
 	gHist = norm(g,2);
 
-	while norm(g,2) > tol
+	# Second condition is a hack. Happens when numerical underflow
+	# occurs in updating x
+	# Replacing 0 with 10^(-10) creates bad results. 
+
+	while (norm(g,2) > tol)
+
+		# println(iter)
+		# iter += 1;
+
+
+		# println(xPrev)
+		# println(x)
+
+		if (norm(xPrev - x,2) <= 0.0)
+			# println(xPrev)
+			# println(x)
+			# println(norm(xPrev - x,2))
+			break
+		end
+
+
+		xPrev = copy(x);
+
+		#println(norm(x[2:end] - x[2:end] - alpha * pinv(H) *g))
 		x[2:end] = x[2:end] - alpha * pinv(H) *g;
+
+
 
 		Fx = zeros(size(F,1),size(F,2))
 		for i = 1:size(F,3)
@@ -76,16 +108,37 @@ function analyticCenter(x0,F, alpha, tol)
 			return
 		end
 
+		L = chol(Fx);
+
+		invLFL = zeros(size(F,1),size(F,2),size(F,3)-1)
+
+		invL = inv(L);
+		for i = 2:size(F,3)
+			invLFL[:,:,i-1] = invL * F[:,:,i] *invL';
+		end
+
+
+
+
+		# #We will precompute the quantity Fx^(-1) * F_i = L^(-1)F_i L^T and store it.
+		# #We will compute L^(-1) F_i by doing back substitution 
+		# invLF = zeros(size(F,1),size(F,2),size(F,3)-1)
+		# for i = 2:size(F,3)
+		# 	invLF[:,j,i-1] = L\F[:,j,i]
+		# end
+
+
+
 
 		for i = 2:size(F,3)
-		    g[i-1] = - trace(pinv(Fx)*F[:,:,i]);
+		    g[i-1] = - trace(invLFL[:,:,i-1]);
 		end
 		
 
 
 		for i = 2:size(F,3)
 		    for j = 2:size(F,3)
-		        H[i-1,j-1] = trace(pinv(Fx) *F[:,:,i] * pinv(Fx)* F[:,:,j]);
+		        H[i-1,j-1] = trace(invLFL[:,:,i-1] * invLFL[:,:,j-1]);
 		    end
 	    end
 	    gHist = [gHist,norm(g,2)];
@@ -93,6 +146,10 @@ function analyticCenter(x0,F, alpha, tol)
 
 
 	end
+
+	# if (norm(xPrev - x,2) == 0)
+	# 	println("WHYYY GOD WHYYY?")
+	# end
 
 	xOpt = x;
 
@@ -102,13 +159,18 @@ end
 
 
 function methOfCents( A,B,C, lambda,x, theta)
+		tic()
+		tol = 10.0^(-7)
+		lambdaPrev = Inf;
 		x = [1 ; x ]
 
 		Ax = Mx(A,x)
 		Bx = Mx(B,x)
 		Cx = Mx(C,x)
 
-	for i = 1:25,
+
+	while lambdaPrev - lambda > tol
+		lambdaPrev = copy(lambda);
 		lambda =  (1-theta)*maximum(eig(Ax,Bx)[1])+ theta*lambda;
 		println(lambda)
 
@@ -124,8 +186,10 @@ function methOfCents( A,B,C, lambda,x, theta)
 		Bx = Mx(B,x);
 		Cx = Mx(C,x);
 
-	end
 
+
+	end
+	toc()
 	return(x,lambda)
 end
 
