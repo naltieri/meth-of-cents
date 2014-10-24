@@ -1,5 +1,5 @@
 function makeBasis(n)
-	int
+	#Creates a basis for nxn symmetric matrices
 	basis = zeros(n,n,convert(Int64, n+n*(n-1)/2));
 	curK = 1;
 	for i = 1:n
@@ -22,6 +22,28 @@ function makeBasis(n)
 	return(basis)
 end
 
+
+function getCoeff(P)
+	#Takes in a PSD P, and get the coefficients corresponding to the basis vectors in make Basis
+	n = size(P,1)
+	x = Array(Float64, 1,convert(Int64, n+n*(n-1)/2))
+	curK  = 1;
+	for i = 1:n
+		x[curK] = P[i,i];
+		curK += 1;
+	end
+
+	for i = 1:n
+		for j = i+1:n
+			x[curK] = P[i,j] 
+			curK += 1;
+		end
+	end
+
+
+
+	return x
+end	
 
 
 
