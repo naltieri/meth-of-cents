@@ -1,3 +1,9 @@
+using Mosek
+include("feas_point.jl")
+include("methodOfCenters.jl")
+
+
+
 function makeBasis(n)
 	#Creates a basis for nxn symmetric matrices
 	basis = zeros(n,n,convert(Int64, n+n*(n-1)/2));
@@ -42,10 +48,17 @@ function getCoeff(P)
 
 
 
-	return x
+	return x'
 end	
 
 
+function getRho(k,lambdaInit)
+	(P, t1, t2) = feas_point( k, lambdaInit )
+	x = getCoeff(P);
+	(A,B,C) = formulateGevp(k);
+	(xOpt,lambdaOpt)= methOfCents( A,B,C, lambdaInit,[x;t1], .1)
+	return(lambdaOpt)
+end
 
 function formulateGevp(k)
 
@@ -95,7 +108,7 @@ function formulateGevp(k)
 	lowerOne[b1D+1,b1D+1] = 1;
 
 	temp = zeros(b1D+1,b1D+1);
-	temp[1:b1D,1:b1D] = q2'*J*q2;
+	temp[1:b1D,1:b1D] = q2'*J*gq2;
 	A = cat(3,A,temp+lowerOne);
 
 
@@ -120,7 +133,7 @@ function formulateGevp(k)
 	# C = blkdiag( P, t1, t2 );
 
 	#dimension of first block
-	b1D = size(P,2);
+	b1D = 3;
 
 	temp = zeros(b1D+2,b1D+2,size(basis,3));
 	for i = 1:size(basis,3)
@@ -144,4 +157,5 @@ function formulateGevp(k)
 	# # % to remove homogeneity, try setting t2 = 1
 
 	return(A,B,C)
+
 end

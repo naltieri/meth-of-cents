@@ -151,9 +151,9 @@ function methOfCents( A,B,C, lambda,x, theta)
 		Bx = Mx(B,x)
 		Cx = Mx(C,x)
 
-
 	while lambdaPrev - lambda > tol
 		lambdaPrev = copy(lambda);
+		
 		lambda =  (1-theta)*maximum(eig(Ax,Bx)[1])+ theta*lambda;
 		println(lambda)
 
