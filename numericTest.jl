@@ -94,38 +94,58 @@ function formulateGevp(k)
 
 	#dimension of first block 
 	b1D = size(xx,2)
-	temp = zeros(b1D+1,b1D+1,size(basis,3));
-	for i = 1:size(basis,3)
-		temp[1:b1D,1:b1D,i] = xx'*basis[:,:,i]*xx;
-	end
-	A = temp;
 
-	temp = zeros(b1D+1,b1D+1);
-	temp[1:b1D,1:b1D] = q1'*J*q1;
-	A = cat(3,A,temp);
-
+	#Put terms related to t2 first as the convention of the solver is to 
+	#have affine terms first
 	lowerOne = zeros(b1D+1,b1D+1);
 	lowerOne[b1D+1,b1D+1] = 1;
 
 	temp = zeros(b1D+1,b1D+1);
-	temp[1:b1D,1:b1D] = q2'*J*gq2;
-	A = cat(3,A,temp+lowerOne);
+	temp[1:b1D,1:b1D] = q2'*J*q2;
+	A = temp+lowerOne;
+
+	temp = zeros(b1D+1,b1D+1,size(basis,3));
+	for i = 1:size(basis,3)
+		temp[1:b1D,1:b1D,i] = xx'*basis[:,:,i]*xx;
+	end
+	A = cat(3,A,temp);
+ 
+	temp = zeros(b1D+1,b1D+1);
+	temp[1:b1D,1:b1D] = q1'*J*q1;
+	A = cat(3,A,temp);
+
+
 
 
 
 	#Does the GEVP form of this in super tedious painful way
 	# B = blkdiag( x'*P*x, t1 + t2 );
 
+
+
 	#dimension of first block
 	b1D = size(x,2);
+
+
+
+	#Put terms related to t2 first as the convention of the solver is to 
+	#have affine terms first
+
+	#HACK ALERT! We put an epsilon in the row of B that has zero for columns
+	#and rows to ensure that it can be positive definite.
+	smallNumber = eps()*100;
+	lowerOneEps = copy(lowerOne);
+	lowerOneEps[size(lowerOneEps,1)-1,size(lowerOneEps,2)-1] = smallNumber;
+	B = lowerOneEps;
+
+
 
 	temp = zeros(b1D+1,b1D+1,size(basis,3));
 	for i = 1:size(basis,3)
 		temp[1:b1D,1:b1D,i] = x'*basis[:,:,i]*x;
 	end
-	B = temp;
+	B = cat(3,B,temp);
 
-	B = cat(3,B,lowerOne);
 	B = cat(3,B,lowerOne);
 
 
@@ -135,11 +155,21 @@ function formulateGevp(k)
 	#dimension of first block
 	b1D = 3;
 
+	#Put terms related to t2 first as the convention of the solver is to 
+	#have affine terms first
+
+
+
+	secondLowerOne = zeros(b1D+2,b1D+2);
+	secondLowerOne[b1D+2,b1D+2] = 1;
+
+	C = secondLowerOne;
+
 	temp = zeros(b1D+2,b1D+2,size(basis,3));
 	for i = 1:size(basis,3)
 		temp[1:b1D,1:b1D,i] = basis[:,:,i];
 	end
-	C = temp;
+	C = cat(3,C,temp);
 
 	firstLowerOne = zeros(b1D+2,b1D+2);
 	firstLowerOne[b1D+1,b1D+1] = 1;
@@ -147,10 +177,6 @@ function formulateGevp(k)
 
 	C = cat(3,C,firstLowerOne)
 
-	secondLowerOne = zeros(b1D+2,b1D+2);
-	secondLowerOne[b1D+2,b1D+2] = 1;
-
-	C = cat(3,C,secondLowerOne)
 
 
 

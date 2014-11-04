@@ -36,7 +36,7 @@ end
 function analyticCenter(x0,F, alpha, tol)
 	# iter = 1;
 
-	xPrev = zeros(3,1);
+	xPrev = zeros(size(x0,1),1);
 	xPrev[1] = Inf;
 	xPrev[2] = Inf;
 	xPrev[3] = Inf; 
@@ -80,7 +80,13 @@ function analyticCenter(x0,F, alpha, tol)
 			break
 		end
 
+		delta = norm(sqrtm(pinv(H))*g,2);
 
+		if delta <= 1/4
+			alpha = 1;
+		else
+			alpha = 1/(1+delta)
+		end
 		xPrev = copy(x);
 		x[2:end] = x[2:end] - alpha * pinv(H) *g;
 
@@ -91,6 +97,7 @@ function analyticCenter(x0,F, alpha, tol)
 		    Fx = Fx + F[:,:,i]*x[i];
 		end
 
+		chol(Fx)
 		if(cond(Fx) == Inf)
 			println("Fx is singular...quitting")
 			return
@@ -143,6 +150,7 @@ end
 
 
 function methOfCents( A,B,C, lambda,x, theta)
+
 		tol = 10.0^(-7)
 		lambdaPrev = Inf;
 		x = [1 ; x ]
@@ -173,6 +181,7 @@ function methOfCents( A,B,C, lambda,x, theta)
 
 	end
 	
+
 	return(x,lambda)
 end
 
