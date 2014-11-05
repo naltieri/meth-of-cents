@@ -1,3 +1,5 @@
+using Plotly
+
 function makeTestMatrices(d,n)
 
 	A = zeros(d,d,n);
@@ -69,78 +71,144 @@ function analyticCenter(x0,F, alpha, tol)
 	end
 	objHist = log(det(pinv(Fx)));
 	gHist = norm(g,2);
+	hHist = cond(H);
+	fHist = cond(Fx);
 
 	# Second condition is a hack. Happens when numerical underflow
 	# occurs in updating x
 	# Replacing 0 with 10^(-10) creates bad results. 
+
+
+	    sFx = float32(Fx);
+
+	    sH = zeros(Float32,size(F,3)-1,size(F,3)-1)
+		for i = 2:size(F,3)
+		    for j = 2:size(F,3)
+		        sH[i-1,j-1] = trace(inv(sFx) *float32(F[:,:,i])* 	inv(sFx)* float32(F[:,:,j]));
+		    end
+		end
+
+	alphaG = .1;
+	curIter = 1.0;
 
 	while (norm(g,2) > tol)
 
 		if (norm(xPrev - x,2) <= 0.0)
 			break
 		end
-
-		delta = norm(sqrtm(pinv(H))*g,2);
-
+		# alphaG = alphaG/sqrt(curIter);
+		# curIter += 1;
+		smallNumber = 0;
+		H = H + smallNumber
+		delta = norm(sqrtm(inv(H))*g,2);
+		# println(svd(H)[2] )
+		# println(g)
+		 # println(norm((inv(H))-float64((inv(float32(H))))))
+		# println(delta)
 		if delta <= 1/4
 			alpha = 1;
 		else
 			alpha = 1/(1+delta)
 		end
-		xPrev = copy(x);
-		x[2:end] = x[2:end] - alpha * pinv(H) *g;
 
+		xPrev = copy(x);
+		# println(cond(H))
+		#Changing pinv to inv, prevented some solutions from becoming infeasible.
+		#Fuck if I know why
+		x[2:end] = x[2:end] - alpha * inv(H) *g;
+		# x[2:end] = x[2:end]-alphaG* g;
 
 
 		Fx = zeros(size(F,1),size(F,2))
 		for i = 1:size(F,3)
 		    Fx = Fx + F[:,:,i]*x[i];
 		end
+		# println("Eigvals of Fx are:")
+		# println(eigvals(Fx))
+
+		# try
+		# 	chol(Fx)
+		# catch
+		# 	break;
+		# end
 
 		chol(Fx)
 		if(cond(Fx) == Inf)
 			println("Fx is singular...quitting")
 			return
 		end
+		# # println(cond(Fx))
+		# L = chol(Fx);
+		# invLFL = zeros(size(F,1),size(F,2),size(F,3)-1)
 
-		L = chol(Fx);
-
-		invLFL = zeros(size(F,1),size(F,2),size(F,3)-1)
-
-		invL = inv(L);
-		for i = 2:size(F,3)
-			invLFL[:,:,i-1] = invL * F[:,:,i] *invL';
-		end
-
-
-
-
-		# #We will precompute the quantity Fx^(-1) * F_i = L^(-1)F_i L^T and store it.
-		# #We will compute L^(-1) F_i by doing back substitution 
-		# invLF = zeros(size(F,1),size(F,2),size(F,3)-1)
+		# invL = inv(L);
 		# for i = 2:size(F,3)
-		# 	invLF[:,j,i-1] = L\F[:,j,i]
+		# 	invLFL[:,:,i-1] = invL * F[:,:,i] *invL';
 		# end
 
 
 
 
-		for i = 2:size(F,3)
-		    g[i-1] = - trace(invLFL[:,:,i-1]);
-		end
+
+
+		# # #We will precompute the quantity Fx^(-1) * F_i = L^(-1)F_i L^T and store it.
+		# # #We will compute L^(-1) F_i by doing back substitution 
+		# # invLF = zeros(size(F,1),size(F,2),size(F,3)-1)
+		# # for i = 2:size(F,3)
+		# # 	invLF[:,j,i-1] = L\F[:,j,i]
+		# # end
+
+
+
+
+		# for i = 2:size(F,3)
+		#     g[i-1] = - trace(invLFL[:,:,i-1]);
+		# end
 		
 
 
+		# for i = 2:size(F,3)
+		#     for j = 2:size(F,3)
+		#         H[i-1,j-1] = trace(invLFL[:,:,i-1] * invLFL[:,:,j-1]);
+		#     end
+	 #    end
+
+
+
+		g = zeros(1,size(F,3)-1);
+		for i = 2:size(F,3)
+		    g[i-1] = -trace(inv(Fx)*F[:,:,i])
+		end
+		g = g';
+
+		H = zeros(size(F,3)-1,size(F,3)-1)
 		for i = 2:size(F,3)
 		    for j = 2:size(F,3)
-		        H[i-1,j-1] = trace(invLFL[:,:,i-1] * invLFL[:,:,j-1]);
+		        H[i-1,j-1] = trace(inv(Fx) *F[:,:,i]* 	inv(Fx)* F[:,:,j]);
 		    end
-	    end
+		end
+
+	 #    sFx = float32(Fx);
+
+	 #    sH = zeros(Float32,size(F,3)-1,size(F,3)-1)
+		# for i = 2:size(F,3)
+		#     for j = 2:size(F,3)
+		#         sH[i-1,j-1] = trace(inv(sFx) *float32(F[:,:,i])* 	inv(sFx)* float32(F[:,:,j]));
+		#     end
+		# end
+
+		# println(typeof(sH))
+		# println(norm(float64(sH)-H))
 	    gHist = [gHist,norm(g,2)];
 		objHist = [objHist, log(det(pinv(Fx)))];
+		hHist = [hHist,cond(H)]
+		fHist = [fHist,cond(Fx)]
 
 
 	end
+	# firstArg = 1:length(fHist)
+	# secondArg = fHist;
+	# Plotly.plot([firstArg secondArg])
 
 	xOpt = x;
 
@@ -181,7 +249,8 @@ function methOfCents( A,B,C, lambda,x, theta)
 
 	end
 	
-
+	println(eigvals(Bx))
+	println()
 	return(x,lambda)
 end
 

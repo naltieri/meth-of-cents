@@ -157,13 +157,16 @@ function formulateGevp(k)
 
 	#Put terms related to t2 first as the convention of the solver is to 
 	#have affine terms first
-
+	#Include -eps*I to first affine term to prevent singularities from occuring
 
 
 	secondLowerOne = zeros(b1D+2,b1D+2);
 	secondLowerOne[b1D+2,b1D+2] = 1;
 
 	C = secondLowerOne;
+
+	smallNumber2 = 10.0^(-16)
+	C[1:b1D,1:b1D] = -smallNumber2*eye(b1D)
 
 	temp = zeros(b1D+2,b1D+2,size(basis,3));
 	for i = 1:size(basis,3)
