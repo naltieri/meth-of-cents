@@ -1,0 +1,8 @@
+Why does feas point not work for k < .1?
+
+Weird behavoir for both solvers for small p
+
+Need to be close enough to true p to solve correctly
+
+Adaptive changing of theta?
+

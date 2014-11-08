@@ -84,14 +84,16 @@ function analyticCenter(x0,F, alpha, tol)
 	    sH = zeros(Float32,size(F,3)-1,size(F,3)-1)
 		for i = 2:size(F,3)
 		    for j = 2:size(F,3)
-		        sH[i-1,j-1] = trace(inv(sFx) *float32(F[:,:,i])* 	inv(sFx)* float32(F[:,:,j]));
+		        sH[i-1,j-1] = trace(pinv(sFx) *float32(F[:,:,i])* 	pinv(sFx)* float32(F[:,:,j]));
 		    end
 		end
 
 	alphaG = .1;
 	curIter = 1.0;
+	maxIter = 100;
+	while (norm(g,2) > tol) & (curIter < maxIter)	;
 
-	while (norm(g,2) > tol)
+		curIter += 1;
 
 		if (norm(xPrev - x,2) <= 0.0)
 			break
@@ -100,10 +102,10 @@ function analyticCenter(x0,F, alpha, tol)
 		# curIter += 1;
 		smallNumber = 0;
 		H = H + smallNumber
-		delta = norm(sqrtm(inv(H))*g,2);
+		delta = norm(sqrtm(pinv(H))*g,2);
 		# println(svd(H)[2] )
 		# println(g)
-		 # println(norm((inv(H))-float64((inv(float32(H))))))
+		 #println(norm((pinv(H))-float64((pinv(float32(H))))))
 		# println(delta)
 		if delta <= 1/4
 			alpha = 1;
@@ -115,7 +117,7 @@ function analyticCenter(x0,F, alpha, tol)
 		# println(cond(H))
 		#Changing pinv to inv, prevented some solutions from becoming infeasible.
 		#Fuck if I know why
-		x[2:end] = x[2:end] - alpha * inv(H) *g;
+		x[2:end] = x[2:end] - alpha * pinv(H) *g;
 		# x[2:end] = x[2:end]-alphaG* g;
 
 
@@ -126,13 +128,13 @@ function analyticCenter(x0,F, alpha, tol)
 		# println("Eigvals of Fx are:")
 		# println(eigvals(Fx))
 
-		# try
-		# 	chol(Fx)
-		# catch
-		# 	break;
-		# end
+		try
+			chol(Fx)
+		catch
+			println("Analytic Center HAS FAILED")
+			return(xPrev)
+		end
 
-		chol(Fx)
 		if(cond(Fx) == Inf)
 			println("Fx is singular...quitting")
 			return
@@ -200,7 +202,12 @@ function analyticCenter(x0,F, alpha, tol)
 		# println(typeof(sH))
 		# println(norm(float64(sH)-H))
 	    gHist = [gHist,norm(g,2)];
-		objHist = [objHist, log(det(pinv(Fx)))];
+	    try
+			objHist = [objHist, log(det(pinv(Fx)))];
+		catch
+			println("infeasible in analytic center")
+			return(xPrev)
+		end
 		hHist = [hHist,cond(H)]
 		fHist = [fHist,cond(Fx)]
 
@@ -219,38 +226,56 @@ end
 
 function methOfCents( A,B,C, lambda,x, theta)
 
-		tol = 10.0^(-7)
+		tol = 10.0^(-10)
 		lambdaPrev = Inf;
+		xPrev = [1;x]
 		x = [1 ; x ]
+
+		# println(x)
 
 		Ax = Mx(A,x)
 		Bx = Mx(B,x)
 		Cx = Mx(C,x)
 
 	while lambdaPrev - lambda > tol
+
+		# theta = rand();
+
 		lambdaPrev = copy(lambda);
-		
-		lambda =  (1-theta)*maximum(eig(Ax,Bx)[1])+ theta*lambda;
-		println(lambda)
+	
+		try	
+			lambda =  (1-theta)*maximum(eig(Ax,Bx)[1])+ theta*lambda;
+			println(lambda)
 
-		#Concatenate lambda*B - A with C
-	    F = zeros(size(A,1)+size(C,1),size(A,1)+size(C,1),size(A,3))
-	    F[1:size(A,1),1:size(A,1),:] = lambda*B-A
-	    F[(size(A,1)+1):end,(size(A,1)+1):end,:] = C
+			#Concatenate lambda*B - A with C
+		    F = zeros(size(A,1)+size(C,1),size(A,1)+size(C,1),size(A,3))
+		    F[1:size(A,1),1:size(A,1),:] = lambda*B-A
+		    F[(size(A,1)+1):end,(size(A,1)+1):end,:] = C
+		    xPrev = copy(x);
+		    x = analyticCenter(x,F, .01,10.0^(-3))
 
-	    x = analyticCenter(x,F, .01,10.0^(-3))
+		    #Recompute Ax,Bx,Cx
+		    Ax = Mx(A,x);
+			Bx = Mx(B,x);
+			Cx = Mx(C,x);
 
-	    #Recompute Ax,Bx,Cx
-	    Ax = Mx(A,x);
-		Bx = Mx(B,x);
-		Cx = Mx(C,x);
+		catch
 
+	    	println("Analytic Center has given up")
+	    	theta = sqrt(theta);
 
+	    end
 
 	end
+
+	if (lambdaPrev - lambda <= tol)
+		println("Tolerance Achieved")
+	end 
 	
-	println(eigvals(Bx))
-	println()
+	# println(eigvals(Bx))
+	# println(eigvals(Cx))
+	# println(eigvals(lambda*Bx - Ax))
+
 	return(x,lambda)
 end
 

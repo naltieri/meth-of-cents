@@ -54,8 +54,32 @@ end
 
 function getRho(k,lambdaInit)
 	(P, t1, t2) = feas_point( k, lambdaInit )
+	# println((P,t1,t2))
+	if length(feas_point(k,lambdaInit)) == 1
+		println("feas_point fail")
+		return
+	end
+
 	x = getCoeff(P);
 	(A,B,C) = formulateGevp(k);
+	# G = makeBasis(3);
+	# println((Mx(G,x),t1,1.0)) 
+
+	# tX = Mx(A,[1;x;t1])
+
+	# println(tX)
+
+
+
+	# trueA = makeTrueA(k,P,t1)
+
+	# 	println(trueA)
+
+	# println(tX - trueA)
+
+
+	#println((A,B,C))
+
 	(xOpt,lambdaOpt)= methOfCents( A,B,C, lambdaInit,[x;t1], .1)
 	return(lambdaOpt)
 end
@@ -165,7 +189,7 @@ function formulateGevp(k)
 
 	C = secondLowerOne;
 
-	smallNumber2 = 10.0^(-16)
+	smallNumber2 = 0; 
 	C[1:b1D,1:b1D] = -smallNumber2*eye(b1D)
 
 	temp = zeros(b1D+2,b1D+2,size(basis,3));
@@ -188,3 +212,50 @@ function formulateGevp(k)
 	return(A,B,C)
 
 end
+
+function makeTrueA(k,P,t1)
+
+	t2 = 1;
+	bet = (sqrt(k)-1)/(sqrt(k)+1);
+
+	xx = [   0  -bet   0  bet
+	         1  1+bet  0  -1-bet
+	         0    1    0  -1 ];
+
+	x = [ 1 0 0 0
+	      0 1 0 0
+	      0 0 1 0 ];
+
+	q1 = [ 0  1    0 -1
+	       0 -1/k  0  1 ];
+
+	q2 = [ 0  1   -1 -1
+	       0 -1/k  0  1 ];
+
+	J = [ 0 1; 1 0];
+
+	trueA = full(blkdiag( sparse( xx'*P*xx+ t1*q1'*J*q1 + t2*q2'*J*q2), sparse([1.0]) ))
+
+	return(trueA)
+end
+
+function getRhos(kVect,lInit)
+	#eg
+	# kVect = [1e2, 1e3, 1e4, 1e5]
+	# lInit = [1.5,1.5,1.5,1.5]
+	pVect = zeros(length(kVect))
+	for i = 1:length(kVect)
+		pVect[i] = getRho(kVect[i],lInit[i])
+	end
+	return(pVect)
+end
+
+
+
+
+
+
+
+
+
+
