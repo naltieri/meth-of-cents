@@ -204,7 +204,10 @@ function analyticCenter(x0,F, alpha, tol)
 	    gHist = [gHist,norm(g,2)];
 	    try
 			objHist = [objHist, log(det(pinv(Fx)))];
-		catch
+		catch exc
+			if isa(exc,InterruptException)
+				throw(InterruptException())
+			end
 			println("infeasible in analytic center")
 			return(xPrev)
 		end
@@ -226,7 +229,7 @@ end
 
 function methOfCents( A,B,C, lambda,x, theta)
 
-		tol = 10.0^(-10)
+		tol = 10.0^(-20)
 		lambdaPrev = Inf;
 		xPrev = [1;x]
 		x = [1 ; x ]
@@ -259,10 +262,12 @@ function methOfCents( A,B,C, lambda,x, theta)
 			Bx = Mx(B,x);
 			Cx = Mx(C,x);
 
-		catch
-
+		catch exc
+			if isa(exc,InterruptException)
+				throw(InterruptException())
+			end
 	    	println("Analytic Center has given up")
-	    	theta = sqrt(theta);
+	    	theta = theta^(.75);
 
 	    end
 

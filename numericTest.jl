@@ -81,6 +81,7 @@ function getRho(k,lambdaInit)
 	#println((A,B,C))
 
 	(xOpt,lambdaOpt)= methOfCents( A,B,C, lambdaInit,[x;t1], .1)
+
 	return(lambdaOpt)
 end
 
@@ -238,6 +239,33 @@ function makeTrueA(k,P,t1)
 
 	return(trueA)
 end
+function getRhoRepeat(k,lambdaInit)	
+	lambdaOpt = getRho(k,lambdaInit)
+	minL = lambdaOpt;
+	while true
+		try
+			println("Hello?")
+			lambdaOpt = getRho(k,lambdaOpt)
+			minL = min(lambdaOpt,minL);
+			# if lambdaOptN > lambdaOpt
+			# 	return lambdaOpt
+			# else
+			# 	lambdaOpt = lambdaOptN;
+			# end
+		catch exc
+			println("Exit Reached")
+			if isa(exc,InterruptException)
+				throw(InterruptException())
+			end
+			if isa(exc,BoundsError)
+				return(minL)
+			end
+		end
+	end
+	println("end reached")
+	return(minL)
+end
+
 
 function getRhos(kVect,lInit)
 	#eg
@@ -245,7 +273,7 @@ function getRhos(kVect,lInit)
 	# lInit = [1.5,1.5,1.5,1.5]
 	pVect = zeros(length(kVect))
 	for i = 1:length(kVect)
-		pVect[i] = getRho(kVect[i],lInit[i])
+		pVect[i] = getRhoRepeat(kVect[i],lInit[i])
 	end
 	return(pVect)
 end
