@@ -242,7 +242,9 @@ end
 function getRhoRepeat(k,lambdaInit)	
 	lambdaOpt = getRho(k,lambdaInit)
 	minL = lambdaOpt;
+	curIter = 1;
 	while true
+		curIter += 1;
 		try
 			println("Hello?")
 			lambdaOpt = getRho(k,lambdaOpt)
@@ -262,6 +264,7 @@ function getRhoRepeat(k,lambdaInit)
 			end
 		end
 	end
+	println(curIter)
 	println("end reached")
 	return(minL)
 end

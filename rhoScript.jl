@@ -37,7 +37,8 @@ function plotRho()
 	                "autorange" => true]
 	]
 	datai = [tracei,nesti]
-	responsei = Plotly.plot([datai], ["layout" => layouti, "fileopt" => "overwrite"]);
+	responsei = Plotly.plot([datai], ["layout" => layouti]);
 	println(responsei["url"])
 
 end
+
