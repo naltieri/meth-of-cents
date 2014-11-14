@@ -349,7 +349,7 @@ function getRhoCustom(k,lambdaInit,A,B,C)
 
 	#Remember, the convention here is to not include the affine term in the xInit term
 	#And the affine terms come first in A,B, and C 
-	(xOpt,lambdaOpt)= methOfCents( A,B,C, xInit, lambdaInit,, .1)
+	(xOpt,lambdaOpt)= methOfCents( A,B,C, xInit, lambdaInit, .1)
 
 	return(lambdaOpt)
 end
