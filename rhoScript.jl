@@ -10,6 +10,11 @@ function plotRho()
 
 	lInit[3:5] = 1;
 
+	# lInit[1] = .7;
+	# lInit[2] = 1
+
+	# lInit[3:5] = 1.3;
+
 	rhopt = getRhos(kvals,lInit)
 
 

@@ -239,7 +239,10 @@ function makeTrueA(k,P,t1)
 
 	return(trueA)
 end
+
+
 function getRhoRepeat(k,lambdaInit)	
+	#Super hack that results in high precision
 	lambdaOpt = getRho(k,lambdaInit)
 	minL = lambdaOpt;
 	curIter = 1;
@@ -256,12 +259,16 @@ function getRhoRepeat(k,lambdaInit)
 			# end
 		catch exc
 			println("Exit Reached")
+			println(exc)
 			if isa(exc,InterruptException)
 				throw(InterruptException())
 			end
 			if isa(exc,BoundsError)
+				print("returning...")
+				println(minL)
 				return(minL)
 			end
+			
 		end
 	end
 	println(curIter)
@@ -274,6 +281,7 @@ function getRhos(kVect,lInit)
 	#eg
 	# kVect = [1e2, 1e3, 1e4, 1e5]
 	# lInit = [1.5,1.5,1.5,1.5]
+	#Calls get RhoRepeat for each pair of kVect and lInit.
 	pVect = zeros(length(kVect))
 	for i = 1:length(kVect)
 		pVect[i] = getRhoRepeat(kVect[i],lInit[i])
@@ -281,7 +289,67 @@ function getRhos(kVect,lInit)
 	return(pVect)
 end
 
+function getRhosCustom(kVect,lInit,A,B,C)
+		#eg
+	# kVect = [1e2, 1e3, 1e4, 1e5]
+	# lInit = [1.5,1.5,1.5,1.5]
+	#Calls get RhoRepeat for each pair of kVect and lInit.
+	#RETURNS RHO SQUARED <- IMPORTANT!
+	pVect = zeros(length(kVect))
+	for i = 1:length(kVect)
+		pVect[i] = getRhoRepeatCustom(kVect[i],lInit[i],A,B,C)
+	end
+	return(pVect)
+end 
 
+
+function getRhoRepeatCustom(k,lambdaInit,A,B,C)	
+	#Super hack that results in high precision
+	lambdaOpt = getRho(k,lambdaInit)
+	minL = lambdaOpt;
+	curIter = 1;
+	while true
+		curIter += 1;
+		try
+			println("Hello?")
+			lambdaOpt = getRhoCustom(k,lambdaOpt,A,B,C)
+			minL = min(lambdaOpt,minL);
+			# if lambdaOptN > lambdaOpt
+			# 	return lambdaOpt
+			# else
+			# 	lambdaOpt = lambdaOptN;
+			# end
+		catch exc
+			println("Exit Reached")
+			println(exc)
+			if isa(exc,InterruptException)
+				throw(InterruptException())
+			end
+			if isa(exc,BoundsError)
+				print("returning...")
+				println(minL)
+				return(minL)
+			end
+			
+		end
+	end
+	println(curIter)
+	println("end reached")
+	return(minL)
+end
+
+
+
+
+function getRhoCustom(k,lambdaInit,A,B,C)
+
+	#You'll need to create your own feas_point function using MOSEK's SDP Solver
+	(P, t1, t2) = feas_point( k, lambdaInit )
+
+	(xOpt,lambdaOpt)= methOfCents( A,B,C, lambdaInit,[x;t1], .1)
+
+	return(lambdaOpt)
+end
 
 
 

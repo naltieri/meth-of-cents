@@ -51,10 +51,16 @@ function analyticCenter(x0,F, alpha, tol)
 	for i = 1:size(F,3)
 	    Fx = Fx + F[:,:,i]*x[i];
 	end 
+	try
+		chol(Fx)
+	catch exc
+		println("x is not feasible...quitting analyticCenter ")
+		throw(DomainError())
+	end
 
 	if(cond(Fx) == Inf)
 		println("Fx is singular...quitting")
-		return
+		throw(DomainError())
 	end
 
 	g = zeros(1,size(F,3)-1);
@@ -79,14 +85,14 @@ function analyticCenter(x0,F, alpha, tol)
 	# Replacing 0 with 10^(-10) creates bad results. 
 
 
-	    sFx = float32(Fx);
+	 #    sFx = float32(Fx);
 
-	    sH = zeros(Float32,size(F,3)-1,size(F,3)-1)
-		for i = 2:size(F,3)
-		    for j = 2:size(F,3)
-		        sH[i-1,j-1] = trace(pinv(sFx) *float32(F[:,:,i])* 	pinv(sFx)* float32(F[:,:,j]));
-		    end
-		end
+	 #    sH = zeros(Float32,size(F,3)-1,size(F,3)-1)
+		# for i = 2:size(F,3)
+		#     for j = 2:size(F,3)
+		#         sH[i-1,j-1] = trace(pinv(sFx) *float32(F[:,:,i])* 	pinv(sFx)* float32(F[:,:,j]));
+		#     end
+		# end
 
 	alphaG = .1;
 	curIter = 1.0;
@@ -94,6 +100,7 @@ function analyticCenter(x0,F, alpha, tol)
 	while (norm(g,2) > tol) & (curIter < maxIter)	;
 
 		curIter += 1;
+		#println(curIter)
 
 		if (norm(xPrev - x,2) <= 0.0)
 			break
@@ -117,6 +124,18 @@ function analyticCenter(x0,F, alpha, tol)
 		# println(cond(H))
 		#Changing pinv to inv, prevented some solutions from becoming infeasible.
 		#Fuck if I know why
+		# try 
+		# 	L = chol(H,:L)
+		# catch 
+		# 	println("H is not PSD... :(")
+		# 	return(xPrev)
+		# end
+		# L = chol(H,:L)
+		# firstRes = L\g;
+		# secRes = L'\firstRes;
+
+
+
 		x[2:end] = x[2:end] - alpha * pinv(H) *g;
 		# x[2:end] = x[2:end]-alphaG* g;
 
@@ -137,7 +156,7 @@ function analyticCenter(x0,F, alpha, tol)
 
 		if(cond(Fx) == Inf)
 			println("Fx is singular...quitting")
-			return
+			return(xPrev)
 		end
 		# # println(cond(Fx))
 		# L = chol(Fx);
@@ -147,6 +166,7 @@ function analyticCenter(x0,F, alpha, tol)
 		# for i = 2:size(F,3)
 		# 	invLFL[:,:,i-1] = invL * F[:,:,i] *invL';
 		# end
+
 
 
 
@@ -177,18 +197,72 @@ function analyticCenter(x0,F, alpha, tol)
 
 
 
+		# g = zeros(1,size(F,3)-1);
+		# for i = 2:size(F,3)
+		#     g[i-1] = -trace(pinv(Fx)*F[:,:,i])
+		# end
+		# g = g';
+
+
+
+
+
+		# (U,S,V) = svd(Fx);
+		# svdTol = maximum(size(Fx))*norm(Fx)*eps();
+		# Strunc = S.*(S .> svdTol);
+		# FxStab = U*diagm(Strunc)*V';
+
+		# try
+		# 	L = chol(FxStab,:L);
+		# catch
+		# 	println("LOL NOOB")
+		# end
+
+		# L = chol(FxStab,:L)
+
+
+		
+
+		# g2 = zeros(size(F,3)-1,1);
+		# for i = 2:size(F,3)
+		# 	firstRes = L\F[:,:,i];
+		# 	firstRes = L'\firstRes;
+		#     g2[i-1] = -trace(firstRes);
+		# end
+
+		# g = g2;
+
+
+
+
 		g = zeros(1,size(F,3)-1);
 		for i = 2:size(F,3)
-		    g[i-1] = -trace(inv(Fx)*F[:,:,i])
+		    g[i-1] = -trace(pinv(Fx)*F[:,:,i])
 		end
 		g = g';
 
 		H = zeros(size(F,3)-1,size(F,3)-1)
 		for i = 2:size(F,3)
 		    for j = 2:size(F,3)
-		        H[i-1,j-1] = trace(inv(Fx) *F[:,:,i]* 	inv(Fx)* F[:,:,j]);
+		        H[i-1,j-1] = trace(pinv(Fx) *F[:,:,i]* pinv(Fx)* F[:,:,j]);
 		    end
 		end
+
+		# println("Sup with it")
+
+		# println(cond(Fx))
+
+
+		# H = zeros(size(F,3)-1,size(F,3)-1)
+		# for i = 2:size(F,3)
+		#     for j = 2:size(F,3)
+		#     	firstResI = L\F[:,:,i];
+		# 		secResI = L'\firstResI;
+		# 		firstResJ = L\F[:,:,j];
+		# 		secResJ = L'\firstResJ;
+		#         H[i-1,j-1] = trace(secResI*secResJ);
+		#     end
+		# end
 
 	 #    sFx = float32(Fx);
 
@@ -208,7 +282,7 @@ function analyticCenter(x0,F, alpha, tol)
 			if isa(exc,InterruptException)
 				throw(InterruptException())
 			end
-			println("infeasible in analytic center")
+			println("made infeasible in analytic center")
 			return(xPrev)
 		end
 		hHist = [hHist,cond(H)]
@@ -228,7 +302,7 @@ end
 
 
 function methOfCents( A,B,C, lambda,x, theta)
-
+		tic();
 		tol = 10.0^(-20)
 		lambdaPrev = Inf;
 		xPrev = [1;x]
@@ -263,11 +337,12 @@ function methOfCents( A,B,C, lambda,x, theta)
 			Cx = Mx(C,x);
 
 		catch exc
-			if isa(exc,InterruptException)
-				throw(InterruptException())
-			end
-	    	println("Analytic Center has given up")
-	    	theta = theta^(.75);
+			if isa(exc,DomainError)		
+		    	println("Analytic Center has given up")
+		    	theta = theta*1.1;
+		    else
+		    	throw(exc)
+		    end
 
 	    end
 
@@ -280,7 +355,7 @@ function methOfCents( A,B,C, lambda,x, theta)
 	# println(eigvals(Bx))
 	# println(eigvals(Cx))
 	# println(eigvals(lambda*Bx - Ax))
-
+	toc();
 	return(x,lambda)
 end
 
