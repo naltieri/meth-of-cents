@@ -344,9 +344,12 @@ end
 function getRhoCustom(k,lambdaInit,A,B,C)
 
 	#You'll need to create your own feas_point function using MOSEK's SDP Solver
-	(P, t1, t2) = feas_point( k, lambdaInit )
+	#(P, t1, t2) = feas_point( k, lambdaInit )
+	println("Hi Robert, don't forget to create your own initial point finder!")
 
-	(xOpt,lambdaOpt)= methOfCents( A,B,C, lambdaInit,[x;t1], .1)
+	#Remember, the convention here is to not include the affine term in the xInit term
+	#And the affine terms come first in A,B, and C 
+	(xOpt,lambdaOpt)= methOfCents( A,B,C, xInit, lambdaInit,, .1)
 
 	return(lambdaOpt)
 end
