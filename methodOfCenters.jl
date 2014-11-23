@@ -24,7 +24,16 @@ function makeTestMatrices(d,n)
 
 end
 
-
+function traceTest(n)
+	A = rand(n,n);
+	B = rand(n,n);
+	tic()
+	trace(A*B)
+	toc()
+	tic()
+	sum(sum(A.*B'))
+	toc()
+end
 
 function Mx(M,x)
 	out = zeros(size(M,1),size(M,2))
@@ -34,6 +43,16 @@ function Mx(M,x)
 	return(out)
 end
 
+function computeDiagAB(A,B)
+	#Compute diag(A*B), A,B square
+	d = zeros(size(A,1),1)
+	for i = 1:size(A,1)
+		#JULIAA WHYYYYY
+		d[i] = (A[i,:]*B[:,i])[1]
+		#d[i][:] = A[i,:]*B[:,i]
+	end
+	return(d)
+end
 
 function analyticCenter(x0,F, alpha, tol)
 	# iter = 1;
@@ -61,21 +80,46 @@ function analyticCenter(x0,F, alpha, tol)
 	if(cond(Fx) == Inf)
 		println("Fx is singular...quitting")
 		throw(DomainError())
-	end
+	end	
+	# pinvFx = Array(Float64,size(Fx,1),size(Fx,2))
+	# pinvFxBad = pinv(Fx)
+	# for i = 1:size(pinvFx,1)
+	# 	for j = 1:size(pinvFx,1)
+	# 		pinvFx[i,j] = .5(pinvFxBad[i,j]+pinvFxBad[j,i])
+	# 		# pinvFx[j,i] = .5(pinvFxBad[i,j]+pinvFxBad[j,i])
+	# 	end
+	# end
+	pinvFx = pinv(Fx);
 
-	g = zeros(1,size(F,3)-1);
-	for i = 2:size(F,3)
-	    g[i-1] = -trace(pinv(Fx)*F[:,:,i])
-	end
-	g = g';
-
+	g = zeros(size(F,3)-1,1);		 
 	H = zeros(size(F,3)-1,size(F,3)-1)
 	for i = 2:size(F,3)
+		pinvFxFi = pinvFx*F[:,:,i];
+		g[i-1] = -trace(pinvFxFi)
+		pinvFxFiPinvFx  = pinvFxFi*pinvFx;
 	    for j = 2:size(F,3)
-	        H[i-1,j-1] = trace(pinv(Fx) *F[:,:,i]* pinv(Fx)* F[:,:,j]);
+	    	# 	Fj = F[:,:,j];
+	        # H[i-1,j-1] = sum(sum(pinvFxFiPinvFx .* Fj'));
+	        H[i-1,j-1] = trace(pinvFxFiPinvFx * F[:,:,j]);
+	        # println("IM HAPPY")
+	        # println(issym(F[:,:,i]))
+	        # println(issym(Fx))
+	        # println(issym(pinvFxFiPinvFx))
+	        # println(issym(F[:,:,j]))
+	 
+	        # println(trace(pinvFxFiPinvFx * F[:,:,j])-sum(sum(pinvFxFiPinvFx .* Fj')))
+	        #H[i-1,j-1] = sum(computeDiagAB(pinvFxFiPinvFx , F[:,:,j]));
+	        # println(trace(pinvFxFiPinvFx * F[:,:,j])-sum(pinvFxFiPinvFx[:] .* F[:,:,j][:]))
 	    end
 	end
-	objHist = log(det(pinv(Fx)));
+	# pinvHhat = float64((pinv(float32(H))));
+	# appErr = norm((pinv(H))*g-pinvHhat*g)/(norm(pinv(H)*g));
+	# if appErr > 5
+	# 	println("Hessian Too Ill-Conditioned...Quitting YOOOOOOOOO")
+	# 	throw(DomainError())
+	# end
+
+	# objHist = log(det(pinv(Fx)));
 	gHist = norm(g,2);
 	hHist = cond(H);
 	fHist = cond(Fx);
@@ -96,8 +140,8 @@ function analyticCenter(x0,F, alpha, tol)
 
 	alphaG = .1;
 	curIter = 1.0;
-	maxIter = 100;
-	while (norm(g,2) > tol) & (curIter < maxIter)	;
+	maxIter = 15;
+	while (norm(g,2) > tol) & (curIter < maxIter)	
 
 		curIter += 1;
 		#println(curIter)
@@ -109,10 +153,11 @@ function analyticCenter(x0,F, alpha, tol)
 		# curIter += 1;
 		smallNumber = 0;
 		H = H + smallNumber
-		delta = norm(sqrtm(pinv(H))*g,2);
+		pinvH = pinv(H)
+		delta = norm(sqrtm(pinvH)*g,2);
 		# println(svd(H)[2] )
 		# println(g)
-		 #println(norm((pinv(H))-float64((pinv(float32(H))))))
+
 		# println(delta)
 		if delta <= 1/4
 			alpha = 1;
@@ -136,7 +181,7 @@ function analyticCenter(x0,F, alpha, tol)
 
 
 
-		x[2:end] = x[2:end] - alpha * pinv(H) *g;
+		x[2:end] = x[2:end] - alpha * pinvH *g;
 		# x[2:end] = x[2:end]-alphaG* g;
 
 
@@ -150,7 +195,7 @@ function analyticCenter(x0,F, alpha, tol)
 		try
 			chol(Fx)
 		catch
-			println("Analytic Center HAS FAILED")
+			println("Analytic Center HAS FAILED (made Fx infeasible)")
 			return(xPrev)
 		end
 
@@ -231,22 +276,66 @@ function analyticCenter(x0,F, alpha, tol)
 		# end
 
 		# g = g2;
+		# println("TESTING!")
+		# println(issym(Fx))
+	
+		# pinvFxBad = pinv(Fx)
+		# for i = 1:size(pinvFx,1)
+		# 	for j = 1:size(pinvFx,1)
+		# 		pinvFx[i,j] = .5(pinvFxBad[i,j]+pinvFxBad[j,i])
+		# 		# pinvFx[j,i] = .5(pinvFxBad[i,j]+pinvFxBad[j,i])
+		# 	end
+		# end
+		pinvFx = pinv(Fx)
+		# println(issym(pinvFx))
+		# pinvFxF = Array(Float64,size(F,1),size(F,2),size(F,3)-1)
+		# println(size(pinvFxF))
+		# for i = 2:size(F,3)
+		# 	println(size(pinvFxF[:,:,i]))
+		# 	println(size(pinvFx*F[:,:,i]))
+		# 	pinvFxF[:,:,i] = pinvFx*F[:,:,i]
+		# end
 
+		# g = zeros(size(F,3)-1,1);
+		# for i = 2:size(F,3)
+		# 	g[i-1] = -trace(pinvFx*F[:,:,i])
+		#     # g[i-1] = -sum(sum(pinvFx.*F[:,:,i]))
+		# end
+		 
 
-
-
-		g = zeros(1,size(F,3)-1);
-		for i = 2:size(F,3)
-		    g[i-1] = -trace(pinv(Fx)*F[:,:,i])
-		end
-		g = g';
-
+		g = zeros(size(F,3)-1,1);		 
 		H = zeros(size(F,3)-1,size(F,3)-1)
 		for i = 2:size(F,3)
+			pinvFxFi = pinvFx*F[:,:,i];
+			g[i-1] = -trace(pinvFxFi)
+			pinvFxFiPinvFx  = pinvFxFi*pinvFx;
 		    for j = 2:size(F,3)
-		        H[i-1,j-1] = trace(pinv(Fx) *F[:,:,i]* pinv(Fx)* F[:,:,j]);
+		    	# 	Fj = F[:,:,j];
+		        # H[i-1,j-1] = sum(sum(pinvFxFiPinvFx .* Fj'));
+		        H[i-1,j-1] = trace(pinvFxFiPinvFx * F[:,:,j]);
+		        # println("IM HAPPY")
+		        # println(issym(F[:,:,i]))
+		        # println(issym(Fx))
+		        # println(issym(pinvFxFiPinvFx))
+		        # println(issym(F[:,:,j]))
+		 
+		        # println(trace(pinvFxFiPinvFx * F[:,:,j])-sum(sum(pinvFxFiPinvFx .* Fj')))
+		        #H[i-1,j-1] = sum(computeDiagAB(pinvFxFiPinvFx , F[:,:,j]));
+		        # println(trace(pinvFxFiPinvFx * F[:,:,j])-sum(pinvFxFiPinvFx[:] .* F[:,:,j][:]))
 		    end
 		end
+
+		# pinvHhat = float64((pinv(float32(H))));
+		# # println("-------------------------")
+		# # println(norm(pinv(H)*g-pinvHhat*g)/(norm(pinv(H)*g)))
+		# # println("-------------------------")
+		# appErr = norm(pinv(H)*g-pinvHhat*g)/(norm(pinv(H)*g));
+		# if appErr > 1
+		# 	println("Hessian Too Ill-Conditioned...Analytic Center Failed YOYOYOYOYOYO")
+		# 	return(x)
+		# end
+
+
 
 		# println("Sup with it")
 
@@ -276,15 +365,16 @@ function analyticCenter(x0,F, alpha, tol)
 		# println(typeof(sH))
 		# println(norm(float64(sH)-H))
 	    gHist = [gHist,norm(g,2)];
-	    try
-			objHist = [objHist, log(det(pinv(Fx)))];
-		catch exc
-			if isa(exc,InterruptException)
-				throw(InterruptException())
-			end
-			println("made infeasible in analytic center")
-			return(xPrev)
-		end
+	 #    try
+		# 	# objHist = [objHist, log(det(pinv(Fx)))];
+		# 	chol(Fx)
+		# catch exc
+		# 	if isa(exc,InterruptException)
+		# 		throw(InterruptException())
+		# 	end
+		# 	println("made infeasible in analytic center")
+		# 	return(xPrev)
+		# end
 		hHist = [hHist,cond(H)]
 		fHist = [fHist,cond(Fx)]
 
@@ -301,12 +391,14 @@ end
 
 
 
-function methOfCents( A,B,C, lambda,x, theta)
+function methOfCents( A,B,C, lambda,x, thetaInit, thetaMul)
 		tic();
 		tol = 10.0^(-20)
 		lambdaPrev = Inf;
 		xPrev = [1;x]
 		x = [1 ; x ]
+
+		theta = thetaInit
 
 		# println(x)
 
@@ -337,14 +429,20 @@ function methOfCents( A,B,C, lambda,x, theta)
 			Cx = Mx(C,x);
 
 		catch exc
+			println(exc)
 			if isa(exc,DomainError)		
 		    	println("Analytic Center has given up")
-		    	theta = theta*1.1;
+		    	theta = theta*thetaMul;
+		    	#We could do some other kind of back off, it might increase improvement
+		    	if theta > 1
+		    		println("THETA GREATER THAN 1!")
+		    		return(x,lambda)
+		    	end
 		    else
 		    	throw(exc)
 		    end
 
-	    end
+		end
 
 	end
 

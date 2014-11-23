@@ -51,6 +51,17 @@ function getCoeff(P)
 	return x'
 end	
 
+function getMosekX(k,lambdaInit)
+	(P, t1, t2) = feas_point( k, lambdaInit )
+	# println((P,t1,t2))
+	if length(feas_point(k,lambdaInit)) == 1
+		println("feas_point fail")
+		return
+	end
+
+	x = getCoeff(P);
+	return([1;x;t1])
+end
 
 function getRho(k,lambdaInit)
 	(P, t1, t2) = feas_point( k, lambdaInit )
@@ -80,9 +91,9 @@ function getRho(k,lambdaInit)
 
 	#println((A,B,C))
 
-	(xOpt,lambdaOpt)= methOfCents( A,B,C, lambdaInit,[x;t1], .1)
+	(xOpt,lambdaOpt)= methOfCents( A,B,C, lambdaInit,[x;t1], .1,1.1)
 
-	return(lambdaOpt)
+	return(xOpt,lambdaOpt)
 end
 
 function formulateGevp(k)
@@ -242,15 +253,16 @@ end
 
 
 function getRhoRepeat(k,lambdaInit)	
+	tic()
 	#Super hack that results in high precision
-	lambdaOpt = getRho(k,lambdaInit)
+	(xOpt,lambdaOpt) = getRho(k,lambdaInit)
 	minL = lambdaOpt;
 	curIter = 1;
 	while true
 		curIter += 1;
 		try
 			println("Hello?")
-			lambdaOpt = getRho(k,lambdaOpt)
+			(xOpt,lambdaOpt) = getRho(k,lambdaOpt)
 			minL = min(lambdaOpt,minL);
 			# if lambdaOptN > lambdaOpt
 			# 	return lambdaOpt
@@ -266,6 +278,7 @@ function getRhoRepeat(k,lambdaInit)
 			if isa(exc,BoundsError)
 				print("returning...")
 				println(minL)
+				toc()
 				return(minL)
 			end
 			
@@ -273,8 +286,80 @@ function getRhoRepeat(k,lambdaInit)
 	end
 	println(curIter)
 	println("end reached")
+	toc()
 	return(minL)
 end
+
+function getRhoSuperRepeat(k,lambdaInit)	
+	#Super hack that results in high precision
+	lambdaPrev = lambdaInit;
+	(xOpt,lambdaOpt) = getRho(k,lambdaInit)
+	minL = lambdaOpt;
+	curIter = 1;
+	while true
+		curIter += 1;
+		try
+			println("Hello?")
+			xMosek = getMosekX(k,lambdaOpt)
+			print("NORM DIFFERENCE IS ... ")
+			println(norm(xMosek-xOpt))
+							lambdaPrev = copy(lambdaOpt);
+
+			(xOpt,lambdaOpt) = getRho(k,lambdaOpt)
+
+			minL = min(lambdaOpt,minL);
+			# if lambdaOptN > lambdaOpt
+			# 	return lambdaOpt
+			# else
+			# 	lambdaOpt = lambdaOptN;
+			# end
+		catch exc
+			println("Exit Reached")
+			println(exc)
+			if isa(exc,InterruptException)
+				throw(InterruptException())
+			end
+			if isa(exc,BoundsError)
+				println("Halving")
+				# lambdaHalf = .5*(lambdaOpt+lambdaPrev);
+				println(lambdaOpt)
+				println(lambdaPrev)
+				newOpt = bisectionSearch(k,lambdaOpt,lambdaPrev,1e-10);
+				print("NewOpt is ... ")
+				println(newOpt)
+
+				nL= getRhoRepeat(k,newOpt);
+				biL = bisectionSearch(k,0,1.5,1e-10);
+				 biLInit = getRhoRepeat(k,biL)
+
+				print("OldOpt is ... ")
+				println(lambdaOpt)
+				print("Bisection is ...")
+
+				println(biL)
+				print("newOpt is ...")
+				println(newOpt)
+
+				print("opt with init at biL is...")
+
+				println(biLInit)
+
+				minL = min(biL,lambdaOpt,newOpt,biLInit);
+
+				print("Returning...  ")
+				println(minL)
+				return(minL)
+			end
+			throw(exc)
+			
+		end
+
+	end
+	println(curIter)
+	println("end reached")
+	return(minL)
+end
+
 
 
 function getRhos(kVect,lInit)
@@ -355,9 +440,133 @@ function getRhoCustom(k,lambdaInit,A,B,C)
 end
 
 
+function getRhoTune(k,lambdaInit,tInit,tMul)
+	(P, t1, t2) = feas_point( k, lambdaInit )
+	# println((P,t1,t2))
+	if length(feas_point(k,lambdaInit)) == 1
+		println("feas_point fail")
+		return
+	end
+
+	x = getCoeff(P);
+	(A,B,C) = formulateGevp(k);
+	# G = makeBasis(3);
+	# println((Mx(G,x),t1,1.0)) 
+
+	# tX = Mx(A,[1;x;t1])
+
+	# println(tX)
 
 
 
+	# trueA = makeTrueA(k,P,t1)
+
+	# 	println(trueA)
+
+	# println(tX - trueA)
 
 
+	#println((A,B,C))
+
+	(xOpt,lambdaOpt)= methOfCents( A,B,C, lambdaInit,[x;t1], tInit,tMul)
+
+	return(lambdaOpt)
+end
+
+function parameterTune(tInit,tMul)
+	paramMat = zeros(length(tInit),length(tMul));
+	for i = 1:length(tInit)
+		for j = 1:length(tMul)
+			paramMat[i,j] = getRhoTune(1e9,1.5,tInit[i],tMul[j]	);
+		end
+	end
+	return(paramMat)
+end
+
+function parameterTuneRepeat(tInit,tMul)
+	paramMat = zeros(length(tInit),length(tMul));
+	for i = 1:length(tInit)
+		for j = 1:length(tMul)
+			paramMat[i,j] = getRhoRepeatTune(1e9,1.5,tInit[i],tMul[j]	);
+		end
+	end
+	return(paramMat)
+end
+
+
+
+function getRhoRepeatTune(k,lambdaInit,tInit,tMul)	
+	#Super hack that results in high precision
+	lambdaOpt = getRhoTune(k,lambdaInit,tInit,tMul)
+	minL = lambdaOpt;
+	curIter = 1;
+	while true
+		curIter += 1;
+		try
+			println("Hello?")
+			lambdaOpt = getRhoTune(k,lambdaOpt,tInit,tMul)
+			minL = min(lambdaOpt,minL);
+			# if lambdaOptN > lambdaOpt
+			# 	return lambdaOpt
+			# else
+			# 	lambdaOpt = lambdaOptN;
+			# end
+		catch exc
+			println("Exit Reached")
+			println(exc)
+			if isa(exc,InterruptException)
+				throw(InterruptException())
+			end
+			if isa(exc,BoundsError)
+				print("returning...")
+				println(minL)
+				return(minL)
+			end
+			
+		end
+	end
+	println(curIter)
+	println("end reached")
+	return(minL)
+end
+
+function bisectionSearch(k,lLow,lHigh,tol)
+	tic()
+	lMed = NaN;
+	while lHigh - lLow > tol
+		lMed = .5*(lHigh+lLow);
+		if (length(feas_point( k, lMed )) == 1)
+			lLow = lMed;
+		else
+			lHigh = lMed;
+		end
+		lMed
+	end
+	if(length(feas_point( k, lLow)) > 1)
+		#println([feas_point(k, lLow)])
+		toc()
+		return(lLow)
+	end
+
+	if (isnan(lMed))
+		println("Uhoh lMed = NaN because tol is too low")
+	else
+		if(length(feas_point( k, lMed)) > 1)
+			#println(feas_point( k, lMed))
+			toc()
+			return(lMed)
+		end
+	end
+	toc()
+	return(lHigh)
+end
+
+
+function bisectionSearchVect(kVect,lLow,lHigh,tol)
+	lBiVect = zeros(length(kVect),1);
+	for i = 1:length(kVect)
+		lBiVect[i] = bisectionSearch(kVect[i],lLow,lHigh,tol)
+	end
+	return(lBiVect)
+end
 

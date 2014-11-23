@@ -1,21 +1,23 @@
 include("numericTest.jl")
 
 function plotRho()
-	kvals = logspace(.005,8,20);
-	kvals = kvals[3:end]
+	kvals = logspace(.005,8.5,40);
+	kvals = kvals[5:end]
 	lInit = repmat([1.5],length(kvals),1);
 
-	lInit[1] = .5;
-	lInit[2] = .7
+	# lInit[1] = .5;
+	# lInit[2] = .7
 
-	lInit[3:5] = 1;
+	# lInit[3:5] = 1;
 
-	# lInit[1] = .7;
-	# lInit[2] = 1
+	lInit[1] = .7;
+	lInit[2] = 1
 
-	# lInit[3:5] = 1.3;
-
+	lInit[3:5] = 1.3;
+	tic()
 	rhopt = getRhos(kvals,lInit)
+	toc()
+	# rhopt = bisectionSearchVect(kvals,0,1.5,1e-10);
 
 
 	# ITERATIONS PLOT
@@ -37,11 +39,12 @@ function plotRho()
 	layouti = [
 	    "title" => "Convergence rate",
 	    "xaxis" => ["title" => "Condition number L/m","type" => "log",
-	                "autorange" => true,"range" => [1e0, 1e6]],
+	                "autorange" => true,"range" => [1e0, 10^(6)]],
 	    "yaxis" => ["title" => "Convergence rate","type" => "log",
 	                "autorange" => true]
 	]
 	datai = [tracei,nesti]
+	# datai = tracei;
 	responsei = Plotly.plot([datai], ["layout" => layouti]);
 	println(responsei["url"])
 
