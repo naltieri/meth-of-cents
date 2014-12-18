@@ -73,7 +73,6 @@ function symPinv(A)
 	makeSymmetric(pinvA)
 	# println("symPinvTest")
 	# println(issym(pinvA))
-	# pinvA = inv(A)
 	return(pinvA)
 end
 
@@ -81,16 +80,16 @@ function makeSymmetric(A)
 	#Weirdness for roundoff, should not be more machEps?
 	for i = 1:size(A,1)
 		for j = i+1:size(A,1)
-			avg = .5*(A[i,j] + A[j,i])
-			A[i,j] = avg;
-			A[j,i] = avg;
-			# if(rand(1)[1] > .5)
-			# 	val = A[i,j]
-			# else
-			# 	val = A[j,i]
-			# end
-			# A[i,j] = val;
-			# A[j,i] = val;
+			# avg = .5*(A[i,j] + A[j,i])
+			# A[i,j] = avg;
+			# A[j,i] = avg;
+			if(rand(1)[1] > .5)
+				val = A[i,j]
+			else
+				val = A[j,i]
+			end
+			A[i,j] = val;
+			A[j,i] = val;
 
 		end
 	end
@@ -108,9 +107,7 @@ function projectOntoPSD(A)
 end
 function analyticCenter(x0,F, alpha, tol)
 	# iter = 1;
-	if(cond(Mx(F,x0)) == Inf)
-		println("........ cond is Inf at start")
-	end
+
 	xPrev = zeros(size(x0,1),1);
 	xPrev[1] = Inf;
 	xPrev[2] = Inf;
@@ -126,12 +123,8 @@ function analyticCenter(x0,F, alpha, tol)
 	end 
 	try
 		chol(Fx)
-		if(cond(Fx) == Inf)
-			throw(DomainError())
-		end
 	catch exc
-		# println("x is not feasible...quitting analyticCenter ")
-		# println(x)
+		println("x is not feasible...quitting analyticCenter ")
 		throw(DomainError())
 		# println("projecting...")
 		# Fx = projectOntoPSD(Fx)
@@ -151,50 +144,16 @@ function analyticCenter(x0,F, alpha, tol)
 	# end
 	pinvFx = symPinv(Fx);
 
-	g = zeros(size(F,3)-1,1);		 
-	H = zeros(size(F,3)-1,size(F,3)-1)
-	for i = 2:size(F,3)
-		pinvFxFi = pinvFx*F[:,:,i];
-		g[i-1] = -trace(pinvFxFi)
-		pinvFxFiPinvFx  = pinvFxFi*pinvFx;
-	    for j = 2:size(F,3)
-	    	# 	Fj = F[:,:,j];
-	        # H[i-1,j-1] = sum(sum(pinvFxFiPinvFx .* Fj'));
-	        H[i-1,j-1] = trace(pinvFxFiPinvFx * F[:,:,j]);
-	        # println("IM HAPPY")
-	        # println(issym(F[:,:,i]))
-	        # println(issym(Fx))
-	        # println(issym(pinvFxFiPinvFx))
-	        # println(issym(F[:,:,j]))
-	 
-	        # println(trace(pinvFxFiPinvFx * F[:,:,j])-sum(sum(pinvFxFiPinvFx .* Fj')))
-	        #H[i-1,j-1] = sum(computeDiagAB(pinvFxFiPinvFx , F[:,:,j]));
-	        # println(trace(pinvFxFiPinvFx * F[:,:,j])-sum(pinvFxFiPinvFx[:] .* F[:,:,j][:]))
-	    end
-	end
-
-	H = makeSymmetric(H)
-
-
 	# g = zeros(size(F,3)-1,1);		 
 	# H = zeros(size(F,3)-1,size(F,3)-1)
 	# for i = 2:size(F,3)
 	# 	pinvFxFi = pinvFx*F[:,:,i];
 	# 	g[i-1] = -trace(pinvFxFi)
 	# 	pinvFxFiPinvFx  = pinvFxFi*pinvFx;
-	#     for j = i:size(F,3)
-	#     	if(j==i)
-	# 	        H[i-1,j-1] = trace(pinvFxFiPinvFx * F[:,:,j]);
-	# 	    else
-	# 	    	if(rand(1)[1] > .5)
-	# 		        H[i-1,j-1] = trace(pinvFxFiPinvFx * F[:,:,j]);
-	# 		        H[j-1,i-1] = copy(H[i-1,j-1])
-	# 		    else
-	# 				H[i-1,j-1] = trace(F[:,:,j]*pinvFxFiPinvFx);
-	# 		        H[j-1,i-1] = copy(H[i-1,j-1])
-	# 		    end
-	# 	    end
-
+	#     for j = 2:size(F,3)
+	#     	# 	Fj = F[:,:,j];
+	#         # H[i-1,j-1] = sum(sum(pinvFxFiPinvFx .* Fj'));
+	#         H[i-1,j-1] = trace(pinvFxFiPinvFx * F[:,:,j]);
 	#         # println("IM HAPPY")
 	#         # println(issym(F[:,:,i]))
 	#         # println(issym(Fx))
@@ -207,15 +166,40 @@ function analyticCenter(x0,F, alpha, tol)
 	#     end
 	# end
 
+	# H = makeSymmetric(H)
 
 
-		pinvH = symPinv(H)
-		delta = norm(sqrtm(pinvH)*g,2);
-		if delta <= 1/4
-			alpha = 1;
-		else
-			alpha = 1/(1+delta)
-		end
+	g = zeros(size(F,3)-1,1);		 
+	H = zeros(size(F,3)-1,size(F,3)-1)
+	for i = 2:size(F,3)
+		pinvFxFi = pinvFx*F[:,:,i];
+		g[i-1] = -trace(pinvFxFi)
+		pinvFxFiPinvFx  = pinvFxFi*pinvFx;
+	    for j = i:size(F,3)
+	    	if(j==i)
+		        H[i-1,j-1] = trace(pinvFxFiPinvFx * F[:,:,j]);
+		    else
+		    	if(rand(1)[1] > .5)
+			        H[i-1,j-1] = trace(pinvFxFiPinvFx * F[:,:,j]);
+			        H[j-1,i-1] = copy(H[i-1,j-1])
+			    else
+					H[i-1,j-1] = trace(F[:,:,j]*pinvFxFiPinvFx);
+			        H[j-1,i-1] = copy(H[i-1,j-1])
+			    end
+		    end
+
+	        # println("IM HAPPY")
+	        # println(issym(F[:,:,i]))
+	        # println(issym(Fx))
+	        # println(issym(pinvFxFiPinvFx))
+	        # println(issym(F[:,:,j]))
+	 
+	        # println(trace(pinvFxFiPinvFx * F[:,:,j])-sum(sum(pinvFxFiPinvFx .* Fj')))
+	        #H[i-1,j-1] = sum(computeDiagAB(pinvFxFiPinvFx , F[:,:,j]));
+	        # println(trace(pinvFxFiPinvFx * F[:,:,j])-sum(pinvFxFiPinvFx[:] .* F[:,:,j][:]))
+	    end
+	end
+
 
 	# pinvHhat = float64((pinv(float32(H))));
 	# appErr = norm((pinv(H))*g-pinvHhat*g)/(norm(pinv(H)*g));
@@ -246,8 +230,8 @@ function analyticCenter(x0,F, alpha, tol)
 	alphaG = .1;
 	curIter = 1.0;
 	maxIter = 15;
-	firstIter = true;
 	while (norm(g,2) > tol) & (curIter < maxIter)	
+
 		curIter += 1;
 		#println(curIter)
 
@@ -259,7 +243,6 @@ function analyticCenter(x0,F, alpha, tol)
 		smallNumber = 0;
 		H = H + smallNumber
 		pinvH = symPinv(H)
-		# pinvH = pinv(H);
 		delta = norm(sqrtm(pinvH)*g,2);
 		# println(svd(H)[2] )
 		# println(g)
@@ -273,6 +256,8 @@ function analyticCenter(x0,F, alpha, tol)
 
 		xPrev = copy(x);
 		# println(cond(H))
+		#Changing pinv to inv, prevented some solutions from becoming infeasible.
+		#Fuck if I know why
 		# try 
 		# 	L = chol(H,:L)
 		# catch 
@@ -282,30 +267,9 @@ function analyticCenter(x0,F, alpha, tol)
 		# L = chol(H,:L)
 		# firstRes = L\g;
 		# secRes = L'\firstRes;
-		# if firstIter
-		# 	y = copy(x)
-		# 	success = false
-		# 	while success == false
-		# 		y[2:end] = x[2:end] - alpha * pinvH *g;
-		# 		Fx = zeros(size(F,1),size(F,2))
-		# 		for i = 1:size(F,3)
-		# 		    Fx = Fx + F[:,:,i]*y[i];
-		# 		end
-		# 		try
-		# 			chol(Fx)
-		# 			if(cond(Fx) == Inf)
-		# 				# println("Can't take step, boundary failure")
-		# 				throw(DomainError())
-		# 			end
-		# 			success = true;
-		# 		catch
-		# 			# println("Can't take step, failure")
-		# 			alpha = alpha * .9
-		# 		end
 
-		# 	end
-		# end
-		# firstIter = false;
+
+
 		x[2:end] = x[2:end] - alpha * pinvH *g;
 		# x[2:end] = x[2:end]-alphaG* g;
 
@@ -412,7 +376,6 @@ function analyticCenter(x0,F, alpha, tol)
 		# 	end
 		# end
 		pinvFx = symPinv(Fx)
-
 		# println(issym(pinvFx))
 		# pinvFxF = Array(Float64,size(F,1),size(F,2),size(F,3)-1)
 		# println(size(pinvFxF))
@@ -583,8 +546,6 @@ function methOfCents( A,B,C, lambda,x, thetaInit, thetaMul)
 
 		lambdaPrev = copy(lambda);
 
-
-
 		# success = false;
 		# for i = 1:length(thetaList)
 		# 	if success == false
@@ -620,72 +581,11 @@ function methOfCents( A,B,C, lambda,x, thetaInit, thetaMul)
 		# 	println("analytic is sad")
 		# 	return(x,lambda)
 		# end
-
-		# success = false;
-		# while success == false && theta < 1
-		# 	if success == false
-		# 		try
-		# 			newLambda =  (1-theta)*maximum(eig(Ax,Bx)[1])+ theta*lambda;
-		# 			println(newLambda)
-
-		# 			#Concatenate lambda*B - A with C
-		# 		    F = zeros(size(A,1)+size(C,1),size(A,1)+size(C,1),size(A,3))
-		# 		    F[1:size(A,1),1:size(A,1),:] = lambda*B-A
-		# 		    F[(size(A,1)+1):end,(size(A,1)+1):end,:] = C
-		# 		    newX = analyticCenter(x,F, .01,10.0^(-3))
-
-		# 		    #Recompute Ax,Bx,Cx
-		# 		    Ax = Mx(A,x);
-		# 			Bx = Mx(B,x);
-		# 			Cx = Mx(C,x);
-		# 			success = true;
-		# 		catch exc
-		# 			println(exc)
-		# 			theta = theta*1.1
-		# 		end
-		# 	end
-		# end
-
-		# if success == true
-		# 	x = copy(newX)
-		# 	lambda = copy(newLambda)
-		# 	xPrev = copy(x);
-		# end
-
-		# if success == false
-		# 	println("analytic is sad")
-		# 	return(x,lambda)
-		# end
 		try	
 
 
-			# lambda =  (1-theta)*maximum(eig(Ax,Bx)[1])+ theta*lambda;
-			# success = false
-			# while success == false
-			# 	try
-			# 		println("IM TRYINGGG")
-			# 		newLambda =  (1-theta)*maximum(eig(Ax,Bx)[1])+ theta*lambda;
-			# 		F[1:size(A,1),1:size(A,1),:] = newLambda*B-A
-			# 		try
-			# 			Fx = Mx(F,x)
-			# 			chol(Fx)
-			# 			success = true
-			# 		catch
-			# 			theta = theta*1.1
-			# 			theta = min(theta,1);
-			# 			if theta == 1
-			# 				success = true;
-			# 			end
-			# 		end
-			# 	end
-			# end
-			println("----")
-			println(cond(Ax))
-			println(cond(Bx))
-			println("-----")
+
 			lambda =  (1-theta)*maximum(eig(Ax,Bx)[1])+ theta*lambda;
-
-
 			println(lambda)
 
 			#Concatenate lambda*B - A with C
@@ -693,19 +593,15 @@ function methOfCents( A,B,C, lambda,x, thetaInit, thetaMul)
 		    F[1:size(A,1),1:size(A,1),:] = lambda*B-A
 		    # F[(size(A,1)+1):end,(size(A,1)+1):end,:] = C
 		    xPrev = copy(x);
-			print("COND OF FX IS ----- ")
-			println(cond(Mx(F,x)))		    
 		    x = analyticCenter(x,F, .01,10.0^(-3))
 
 		    #Recompute Ax,Bx,Cx
 		    Ax = Mx(A,x);
-		    # println(cond(Ax))
 			Bx = Mx(B,x);
-			# println(cond(Bx))
 			# Cx = Mx(C,x);
 
 		catch exc
-			# println(exc)
+			println(exc)
 			toc();
 			return(x,lambda)
 			# if isa(exc,DomainError)		

@@ -169,7 +169,7 @@ function formulateGevp(k)
 
 	#HACK ALERT! We put an epsilon in the row of B that has zero for columns
 	#and rows to ensure that it can be positive definite.
-	smallNumber = eps()*100;
+	smallNumber = eps();
 	lowerOneEps = copy(lowerOne);
 	lowerOneEps[size(lowerOneEps,1)-1,size(lowerOneEps,2)-1] = smallNumber;
 	B = lowerOneEps;
@@ -261,7 +261,7 @@ function getRhoRepeat(k,lambdaInit)
 	while true
 		curIter += 1;
 		try
-			println("Hello?")
+			println("=========RESTARTING WITH MOSEK =========")
 			(xOpt,lambdaOpt) = getRho(k,lambdaOpt)
 			minL = min(lambdaOpt,minL);
 			# if lambdaOptN > lambdaOpt
@@ -291,6 +291,7 @@ function getRhoRepeat(k,lambdaInit)
 end
 
 function getRhoSuperRepeat(k,lambdaInit)	
+	tic()
 	#Super hack that results in high precision
 	lambdaPrev = lambdaInit;
 	(xOpt,lambdaOpt) = getRho(k,lambdaInit)
@@ -344,10 +345,11 @@ function getRhoSuperRepeat(k,lambdaInit)
 
 				println(biLInit)
 
-				minL = min(biL,lambdaOpt,newOpt,biLInit);
+				minL = min(lambdaOpt,newOpt,biLInit);
 
 				print("Returning...  ")
 				println(minL)
+				toc()
 				return(minL)
 			end
 			throw(exc)
@@ -357,6 +359,7 @@ function getRhoSuperRepeat(k,lambdaInit)
 	end
 	println(curIter)
 	println("end reached")
+	toc()
 	return(minL)
 end
 
@@ -367,13 +370,30 @@ function getRhos(kVect,lInit)
 	# kVect = [1e2, 1e3, 1e4, 1e5]
 	# lInit = [1.5,1.5,1.5,1.5]
 	#Calls get RhoRepeat for each pair of kVect and lInit.
+	maxTrials = 1;
 	pVect = zeros(length(kVect))
 	for i = 1:length(kVect)
-		pVect[i] = getRhoRepeat(kVect[i],lInit[i])
+		best = Inf;
+		for j = 1:maxTrials
+			best = min(best,getRhoRepeat(kVect[i],lInit[i]))
+		end
+
+		pVect[i] = best
 	end
 	return(pVect)
 end
 
+function getRhosBasic(kVect,lInit)
+	#eg
+	# kVect = [1e2, 1e3, 1e4, 1e5]
+	# lInit = [1.5,1.5,1.5,1.5]
+	#Calls get RhoRepeat for each pair of kVect and lInit.
+	pVect = zeros(length(kVect))
+	for i = 1:length(kVect)
+		pVect[i] = (getRho(kVect[i],lInit[i]))[2]
+	end
+	return(pVect)
+end
 function getRhosCustom(kVect,lInit,A,B,C)
 		#eg
 	# kVect = [1e2, 1e3, 1e4, 1e5]
@@ -396,7 +416,7 @@ function getRhoRepeatCustom(k,lambdaInit,A,B,C)
 	while true
 		curIter += 1;
 		try
-			println("Hello?")
+			println("== RESTARTING WITH MOSEK ==")
 			lambdaOpt = getRhoCustom(k,lambdaOpt,A,B,C)
 			minL = min(lambdaOpt,minL);
 			# if lambdaOptN > lambdaOpt
@@ -559,6 +579,43 @@ function bisectionSearch(k,lLow,lHigh,tol)
 	end
 	toc()
 	return(lHigh)
+end
+
+function bisectionSearchTime(k,lLow,lHigh,tol)
+	totalTime = 0;
+	lV = [0 lHigh]
+	lMed = NaN;
+	while lHigh - lLow > tol
+		tic()
+		lMed = .5*(lHigh+lLow);
+		if (length(feas_point( k, lMed )) == 1)
+			lLow = lMed;
+		else
+			lHigh = lMed;
+		end
+		lMed
+		totalTime += toc();
+		lV = [lV; [totalTime lHigh]]
+
+
+	end
+	if(length(feas_point( k, lLow)) > 1)
+		#println([feas_point(k, lLow)])
+		# toc()
+		return(lLow,lV)
+	end
+
+	if (isnan(lMed))
+		println("Uhoh lMed = NaN because tol is too low")
+	else
+		if(length(feas_point( k, lMed)) > 1)
+			#println(feas_point( k, lMed))
+			# toc()
+			return(lMed,lV)
+		end
+	end
+	
+	return(lHigh,lV)
 end
 
 
