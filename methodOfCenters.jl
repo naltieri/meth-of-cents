@@ -25,6 +25,59 @@ function makeTestMatrices(d,n)
 
 end
 
+function genEigSvd(A,B)
+	#Computes the maximum generalized eigenvalue of A,B by factorization via SVD
+	(D,U) = eig(B);
+	# dTol = maximum(size(B))*norm(B)*eps();
+	# dInv = 1./D .* [D .> dTol]
+	dInv = 1./D;
+
+	invDhalf = diagm(sqrt(dInv));
+	newMat = invDhalf*U'*A*U*invDhalf;
+	C = makeSymmetric(newMat);
+	l = eigmax(C)
+	return(l)
+end
+
+
+function genEigChol(A,B)
+	#Computes the maximum generalized eigenvalue of A,B by factorization via SVD
+	L = chol(B,:L);
+	# newMat = inv(L)*A*inv(L');
+	tempMat = L\A;
+	tempMat = tempMat';
+	tempMat2 = L\tempMat;
+	newMat = tempMat2';
+
+	C = makeSymmetric(newMat);
+	l = eigmax(C)
+	return(l)
+end
+
+function feasTest(lambda,A,B,x)
+	# tol = eps()*100;
+	tol = 0;
+	Ax = Mx(A,x);
+	Bx = Mx(B,x);
+	lHat = genEigChol(Ax,Bx)
+	if(lHat <= lambda+tol)
+		# try
+		# 	chol(lambda*Bx - Ax)
+		# catch
+		# 	println("-----GE (YES) AND CHOL (NO) DISAGREE -----")
+		# end
+		return(true)
+	else
+		# try
+		# 	chol(lambda*Bx - Ax)
+		# 	println("-----GE (NO) AND CHOL (YES) DISAGREE-----")
+		# catch
+		
+		# end
+		return(false)
+	end
+end
+
 function traceTest(n)
 	A = rand(n,n);
 	B = rand(n,n);
@@ -74,6 +127,7 @@ function symPinv(A)
 	# println("symPinvTest")
 	# println(issym(pinvA))
 	# pinvA = inv(A)
+	# pinvA = inv(A)+1e6*eps()*eye(size(A,1))
 	return(pinvA)
 end
 
@@ -106,8 +160,11 @@ function projectOntoPSD(A)
 	posA = makeSymmetric(posA)
 	return(posA)
 end
-function analyticCenter(x0,F, alpha, tol)
+function analyticCenter(x0,F, alpha, tol,A,B,C,lambda)
 	# iter = 1;
+	minL = Inf;
+	minIter = 0;
+	minX = x0;
 	if(cond(Mx(F,x0)) == Inf)
 		println("........ cond is Inf at start")
 	end
@@ -125,7 +182,12 @@ function analyticCenter(x0,F, alpha, tol)
 	    Fx = Fx + F[:,:,i]*x[i];
 	end 
 	try
-		chol(Fx)
+		# chol(Fx)
+		if !feasTest(lambda,A,B,x)
+			chol(-eye(1))
+		end
+		chol(Mx(C,x))
+
 		if(cond(Fx) == Inf)
 			throw(DomainError())
 		end
@@ -244,12 +306,44 @@ function analyticCenter(x0,F, alpha, tol)
 		# end
 
 	alphaG = .1;
-	curIter = 1.0;
+	curIter = 1;
 	maxIter = 15;
 	firstIter = true;
-	while (norm(g,2) > tol) & (curIter < maxIter)	
+
+	while (norm(g,2) > tol) & (curIter < maxIter)
+
+
+		newL = genEigChol(Mx(A,x),Mx(B,x))
+		if newL < minL
+			minL = copy(newL);
+			minX = copy(x);
+			minIter = copy(curIter)
+		end
+	    # lBA = F[1:5,1:5,:];
+	    # println(cond(Mx(lBA,x))) 
+
 		curIter += 1;
-		#println(curIter)
+		# print("Iterating...")
+		# println(curIter)
+		# print("Current Gradient is ........")
+		# println(norm(g,2))
+
+
+		if curIter == maxIter-1
+			println("=====================")
+			print("Condition number of Fx is ")
+			println(cond(Fx))
+			print("Final Gradient is ........................ ")
+			println(norm(g,2))
+			println("=====================")
+		end
+
+
+		# print("Current Difference is ........")
+		# println(norm(xPrev-x,2))
+
+		# print("Current stepsize is ........")
+		# println(alpha)
 
 		if (norm(xPrev - x,2) <= 0.0)
 			break
@@ -318,10 +412,27 @@ function analyticCenter(x0,F, alpha, tol)
 		# println(eigvals(Fx))
 
 		try
-			chol(Fx)
+			# chol(Fx)
+			if !feasTest(lambda,A,B,x)
+				chol(-eye(1))
+			end
+			chol(Mx(C,x))
+
 		catch
-			println("Analytic Center HAS FAILED (made Fx infeasible)")
-			return(xPrev)
+			println("=====================")
+			print("Analytic Center HAS FAILED (made Fx infeasible) on iteration ")
+			println(curIter)
+			print("Condition number of Fx is ")
+			println(cond(Fx))
+			print("Final Gradient is ........................ ")
+			println(norm(g,2))
+			println("=====================")
+			# lBA = F[1:5,1:5,:];
+	  		#println(cond(Mx(lBA,x))) 
+			# return(xPrev)
+			println(curIter)
+			println(minIter)
+			return(minX)
 		end
 
 		if(cond(Fx) == Inf)
@@ -548,18 +659,42 @@ function analyticCenter(x0,F, alpha, tol)
 
 	xOpt = x;
 
-	return(xOpt)
+	# return(xOpt)
+	println(curIter)
+	println(minIter)
+	return(minX)
 end
 
 
 
-function methOfCents( A,B,C, lambda,x, thetaInit, thetaMul)
+function methOfCents( A,B,C, lambda,x, thetaInit, thetaMul,k)
 		tic();
-		tol = 10.0^(-20)
+		# tol = 10.0^(-20)
+		tol = 0;
 		lambdaPrev = Inf;
 		xPrev = [1;x]
 		x = [1 ; x ]
+		#Check lambda values
+		println("-----------------")
+			println(lambda)
+			println(maximum(eig(Mx(A,x),Mx(B,x))[1]))
+			# println(maximum(eig(float32(Mx(A,x)),float32(Mx(B,x)))[1]))
 
+		println("-----------------")
+		#Test feasibility
+		try
+			chol(Mx(C,x))
+		catch
+			println("Cx not feasible")
+		end
+		try
+			if !feasTest(lambda,A,B,x)
+				chol(-eye(1))
+			end
+			# chol(lambda*Mx(B,x)-Mx(A,x))
+		catch
+			println("lambdaB-A not feasible")
+		end
 		theta = thetaInit
 
 		# println(x)
@@ -579,9 +714,15 @@ function methOfCents( A,B,C, lambda,x, thetaInit, thetaMul)
 
 	while lambdaPrev - lambda > tol
 
+		# if lambda > 1.4
+		# 	return
+		# end
+
+
 		# theta = rand();
 
 		lambdaPrev = copy(lambda);
+		xPrev = copy(x);
 
 
 
@@ -679,33 +820,66 @@ function methOfCents( A,B,C, lambda,x, thetaInit, thetaMul)
 			# 		end
 			# 	end
 			# end
-			println("----")
-			println(cond(Ax))
-			println(cond(Bx))
-			println("-----")
-			lambda =  (1-theta)*maximum(eig(Ax,Bx)[1])+ theta*lambda;
+			# println("----")
+			# println(cond(Ax))
+			# println(cond(Bx))
+			# println("-----")
+						# println(eig(lambda*Bx-Ax)[1])
 
+			# println(maximum(eig(Mx(A,x),Mx(B,x))[1]) - maximum(eig(float32(Mx(A,x)),float32(Mx(B,x)))[1]))
+			# lambda =  (1-theta)*maximum(eig(Ax,Bx)[1])+ theta*lambda;
+			oldLambda = lambda;
+			lambda =  (1-theta)*genEigChol(Ax,Bx)+ theta*lambda;
+
+			print("Improvement is ------------- ")
+			println(oldLambda-lambda)
+			# if(oldLambda - lambda < 0)
+			# 	return(xPrev,lambdaPrev)
+			# end
 
 			println(lambda)
 
 			#Concatenate lambda*B - A with C
-		    # F = zeros(size(A,1)+size(C,1),size(A,1)+size(C,1),size(A,3))
-		    F[1:size(A,1),1:size(A,1),:] = lambda*B-A
+		    # F = zeros(size(A,1)+size(C,1),size(A,1)+size(C,1),size(A,3)
+		    # smallNumber = 1e4*eps();
+		    # pushFactor = smallNumber*eye(size(Ax,1))
+		    F[1:size(A,1),1:size(A,1),:] = copy(lambda*B-A)
+		    # F[1:size(A,1),1:size(A,1),end] -= pushFactor
+
 		    # F[(size(A,1)+1):end,(size(A,1)+1):end,:] = C
 		    xPrev = copy(x);
-			print("COND OF FX IS ----- ")
-			println(cond(Mx(F,x)))		    
-		    x = analyticCenter(x,F, .01,10.0^(-3))
+			# print("COND OF FX IS ----- ")
+			# println(cond(Mx(F,x)))
+			print("Cond (lB-A)(x): ")
+			println(cond(lambda*Bx-Ax))
+			# println(minimum(eig(lambda*Bx-Ax)[1]))
+			# println(eig(lambda*Bx-Ax)[1])
 
+  
+		    x = analyticCenter(x,F, .01,10.0^(-3),A,B,C,lambda)
+		  #   if(cond(lambda*Bx-Ax) > 1e15)
+			 #    try
+			 #    	x = getMosekX(k,lambda)
+			 #    catch
+			 #    	println("MOSEK HAS FAILED")
+				#     x = analyticCenter(x,F, .01,10.0^(-3))
+				# end
+		  #   else
+		  #  		x = analyticCenter(x,F, .01,10.0^(-3))
+		  #  	end
 		    #Recompute Ax,Bx,Cx
 		    Ax = Mx(A,x);
-		    # println(cond(Ax))
+
 			Bx = Mx(B,x);
+		 #    println(cond(Ax))
 			# println(cond(Bx))
 			# Cx = Mx(C,x);
+			# println(cond(Cx))
+
+
 
 		catch exc
-			# println(exc)
+			println(exc)
 			toc();
 			return(x,lambda)
 			# if isa(exc,DomainError)		

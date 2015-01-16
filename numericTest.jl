@@ -52,18 +52,18 @@ function getCoeff(P)
 end	
 
 function getMosekX(k,lambdaInit)
-	(P, t1, t2) = feas_point( k, lambdaInit )
+	temp = feas_point( k, lambdaInit )
 	# println((P,t1,t2))
-	if length(feas_point(k,lambdaInit)) == 1
+	if length(temp) == 1
 		println("feas_point fail")
-		return
+		return(NaN)
 	end
-
+	(P, t1, t2) = temp;
 	x = getCoeff(P);
 	return([1;x;t1])
 end
 
-function getRho(k,lambdaInit)
+function getRho(k,lambdaInit,flag)
 	(P, t1, t2) = feas_point( k, lambdaInit )
 	# println((P,t1,t2))
 	if length(feas_point(k,lambdaInit)) == 1
@@ -72,7 +72,11 @@ function getRho(k,lambdaInit)
 	end
 
 	x = getCoeff(P);
+	
+
 	(A,B,C) = formulateGevp(k);
+
+
 	# G = makeBasis(3);
 	# println((Mx(G,x),t1,1.0)) 
 
@@ -90,10 +94,13 @@ function getRho(k,lambdaInit)
 
 
 	#println((A,B,C))
-
-	(xOpt,lambdaOpt)= methOfCents( A,B,C, lambdaInit,[x;t1], .1,1.1)
-
-	return(xOpt,lambdaOpt)
+	if(flag == true)
+		(lambdaInit,x) = advBisectionSearchNest(k,0,1.3,1e-5)
+		(xOpt,lambdaOpt)= methOfCents( A,B,C, lambdaInit,x[2:end], .1,1.1,k)
+	else
+		(xOpt,lambdaOpt)= methOfCents( A,B,C, lambdaInit,[x;t1], .1,1.1,k)
+		return(xOpt,lambdaOpt)	
+	end
 end
 
 function formulateGevp(k)
@@ -255,14 +262,15 @@ end
 function getRhoRepeat(k,lambdaInit)	
 	tic()
 	#Super hack that results in high precision
-	(xOpt,lambdaOpt) = getRho(k,lambdaInit)
+	(xOpt,lambdaOpt) = getRho(k,lambdaInit,false)
 	minL = lambdaOpt;
 	curIter = 1;
+	# flag = false;
 	while true
 		curIter += 1;
 		try
 			println("=========RESTARTING WITH MOSEK =========")
-			(xOpt,lambdaOpt) = getRho(k,lambdaOpt)
+			(xOpt,lambdaOpt) = getRho(k,lambdaOpt,false)
 			minL = min(lambdaOpt,minL);
 			# if lambdaOptN > lambdaOpt
 			# 	return lambdaOpt
@@ -370,7 +378,7 @@ function getRhos(kVect,lInit)
 	# kVect = [1e2, 1e3, 1e4, 1e5]
 	# lInit = [1.5,1.5,1.5,1.5]
 	#Calls get RhoRepeat for each pair of kVect and lInit.
-	maxTrials = 1;
+	maxTrials = 3;
 	pVect = zeros(length(kVect))
 	for i = 1:length(kVect)
 		best = Inf;
@@ -390,7 +398,7 @@ function getRhosBasic(kVect,lInit)
 	#Calls get RhoRepeat for each pair of kVect and lInit.
 	pVect = zeros(length(kVect))
 	for i = 1:length(kVect)
-		pVect[i] = (getRho(kVect[i],lInit[i]))[2]
+		pVect[i] = (getRho(kVect[i],lInit[i],false))[2]
 	end
 	return(pVect)
 end
@@ -580,6 +588,65 @@ function bisectionSearch(k,lLow,lHigh,tol)
 	toc()
 	return(lHigh)
 end
+
+function advBisectionSearch(A,B,C,k,lLow,lHigh,tol)
+	tic()
+	lMed = NaN;
+	while lHigh - lLow > tol
+		lMed = .5*(lHigh+lLow);
+		if (feasTest(A,B,C,lMed,getMosekX( k, lMed )) == false)
+			lLow = lMed;
+		else
+			lHigh = lMed;
+		end
+		lMed
+	end
+	curX = getMosekX( k, lLow);
+	if(feasTest(A,B,C,lLow,curX) == true)
+		#println([feas_point(k, lLow)])
+		toc()
+		return(lLow,curX)
+	end
+
+	if (isnan(lMed))
+		println("Uhoh lMed = NaN because tol is too low")
+	else
+		curX = getMosekX( k, lMed);
+		if(feasTest(A,B,C,lMed,curX) == true)
+			#println(feas_point( k, lMed))
+			toc()
+			return(lMed,curX)
+		end
+	end
+	toc()
+	return(lHigh,getMosekX(k,lHigh))
+end
+
+function advBisectionSearchNest(k,lLow,lHigh,tol)
+	(A,B,C) = formulateGevp(k);
+	return(advBisectionSearch(A,B,C,k,lLow,lHigh,tol))
+end
+
+function feasTest(A,B,C,lambda,x)
+	res = true;
+	if(length(x) == 1 && isnan(x))
+		res = false;
+		return(res)
+	end
+	if(maximum(eig(Mx(A,x),Mx(B,x))[1]) > lambda)
+		res = false;
+		return(res)
+	end
+	try
+		chol(lambda*Mx(B,x)-Mx(A,x))
+	catch
+		res = false;
+		return(res)
+	end
+	return(res)
+end
+
+
 
 function bisectionSearchTime(k,lLow,lHigh,tol)
 	totalTime = 0;
