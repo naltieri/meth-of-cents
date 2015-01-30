@@ -103,6 +103,26 @@ function getRho(k,lambdaInit,flag)
 	end
 end
 
+
+
+function createTest(k,lambdaInit)
+	(P, t1, t2) = feas_point( k, lambdaInit )
+	# println((P,t1,t2))
+	if length(feas_point(k,lambdaInit)) == 1
+		println("feas_point fail")
+		return
+	end
+
+	x = getCoeff(P);
+	
+
+	(A,B,C) = formulateGevp(k);
+
+	x = [1;x;t1]
+	return(x,A,B,C)
+end
+
+
 function formulateGevp(k)
 
 	bet = (sqrt(k)-1)/(sqrt(k)+1);
@@ -378,7 +398,7 @@ function getRhos(kVect,lInit)
 	# kVect = [1e2, 1e3, 1e4, 1e5]
 	# lInit = [1.5,1.5,1.5,1.5]
 	#Calls get RhoRepeat for each pair of kVect and lInit.
-	maxTrials = 3;
+	maxTrials = 1;
 	pVect = zeros(length(kVect))
 	for i = 1:length(kVect)
 		best = Inf;
@@ -398,7 +418,7 @@ function getRhosBasic(kVect,lInit)
 	#Calls get RhoRepeat for each pair of kVect and lInit.
 	pVect = zeros(length(kVect))
 	for i = 1:length(kVect)
-		pVect[i] = (getRho(kVect[i],lInit[i],false))[2]
+		pVect[i] = (getRho(kVect[i],lInit[i],true))[2]
 	end
 	return(pVect)
 end
@@ -637,12 +657,12 @@ function feasTest(A,B,C,lambda,x)
 		res = false;
 		return(res)
 	end
-	try
-		chol(lambda*Mx(B,x)-Mx(A,x))
-	catch
-		res = false;
-		return(res)
-	end
+	# try
+	# 	chol(lambda*Mx(B,x)-Mx(A,x))
+	# catch
+	# 	res = false;
+	# 	return(res)
+	# end
 	return(res)
 end
 

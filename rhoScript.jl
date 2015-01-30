@@ -1,7 +1,7 @@
 include("numericTest.jl")
 
 function plotRho()
-	kvals = logspace(1.5,8.5,60);
+	kvals = logspace(1.5,8.5,30);
 	kvals = kvals[5:end]
 	lInit = repmat([1.5],length(kvals),1);
 
@@ -15,8 +15,8 @@ function plotRho()
 
 	lInit[3:5] = 1.3;
 	tic()
-	rhopt = getRhos(kvals,lInit)
-	# rhopt = getRhosBasic(kvals,lInit)
+	# rhopt = getRhos(kvals,lInit)
+	rhopt = getRhosBasic(kvals,lInit)
 	toc()
 	# rhopt = bisectionSearchVect(kvals,0,1.5,1e-10)';
 

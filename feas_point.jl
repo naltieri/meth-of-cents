@@ -29,10 +29,28 @@ function feas_point( k, lambda )
     # enable multi-threading
     putintparam(tsk,MSK_IPAR_NUM_THREADS,0) 
 
+    # # INTERIOR-POINT TOLERANCES
+    # # http://docs.mosek.com/7.0/toolbox/The_optimizers_for_continuous_problems.html
+    # # Primal feasibility tolerance used by the conic interior-point optimizer.
+    # putdouparam(tsk,MSK_DPAR_INTPNT_CO_TOL_PFEAS,1e-8)    # default: 1e-8   IMPORTANT
+    # # Dual feasibility tolerance used by the conic interior-point optimizer.
+    # putdouparam(tsk,MSK_DPAR_INTPNT_CO_TOL_DFEAS,1e-8)    # default: 1e-8   IMPORTANT
+    # # Relative gap termination tolerance used by the conic interior-point optimizer.
+    # putdouparam(tsk,MSK_DPAR_INTPNT_CO_TOL_REL_GAP,1e-7)  # default: 1e-7   IMPORTANT
+    # # Nonlinear solver infeasibility tolerance parameter.
+    # putdouparam(tsk,MSK_DPAR_INTPNT_TOL_INFEAS,1e-10)     # default: 1e-10
+    # # Infeasibility tolerance for the conic solver.
+    # putdouparam(tsk,MSK_DPAR_INTPNT_CO_TOL_INFEAS,1e-10)  # default: 1e-10
+    # # Optimality tolerance for the conic solver.
+    # putdouparam(tsk,MSK_DPAR_INTPNT_CO_TOL_MU_RED,1e-8)   # default: 1e-8
+    # # Optimality tolerance for the conic solver.
+    # putdouparam(tsk,MSK_DPAR_INTPNT_CO_TOL_NEAR_REL,1e3)  # default: 1e3
+
+
     # INTERIOR-POINT TOLERANCES
     # http://docs.mosek.com/7.0/toolbox/The_optimizers_for_continuous_problems.html
     # Primal feasibility tolerance used by the conic interior-point optimizer.
-    putdouparam(tsk,MSK_DPAR_INTPNT_CO_TOL_PFEAS,1e-8)    # default: 1e-8   IMPORTANT
+    putdouparam(tsk,MSK_DPAR_INTPNT_CO_TOL_PFEAS,1e-4)    # default: 1e-8   IMPORTANT
     # Dual feasibility tolerance used by the conic interior-point optimizer.
     putdouparam(tsk,MSK_DPAR_INTPNT_CO_TOL_DFEAS,1e-8)    # default: 1e-8   IMPORTANT
     # Relative gap termination tolerance used by the conic interior-point optimizer.
@@ -40,11 +58,13 @@ function feas_point( k, lambda )
     # Nonlinear solver infeasibility tolerance parameter.
     putdouparam(tsk,MSK_DPAR_INTPNT_TOL_INFEAS,1e-10)     # default: 1e-10
     # Infeasibility tolerance for the conic solver.
-    putdouparam(tsk,MSK_DPAR_INTPNT_CO_TOL_INFEAS,1e-10)  # default: 1e-10
+    putdouparam(tsk,MSK_DPAR_INTPNT_CO_TOL_INFEAS,1e-6)  # default: 1e-10
     # Optimality tolerance for the conic solver.
     putdouparam(tsk,MSK_DPAR_INTPNT_CO_TOL_MU_RED,1e-8)   # default: 1e-8
     # Optimality tolerance for the conic solver.
     putdouparam(tsk,MSK_DPAR_INTPNT_CO_TOL_NEAR_REL,1e3)  # default: 1e3
+
+     # MSK_IPAR_INTPNT_SOLVE_FORM = MSK_SOLVE_DUAL;
 
     # variables t1, t2
     appendvars(tsk,2)
