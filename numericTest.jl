@@ -123,6 +123,27 @@ function createTest(k,lambdaInit)
 end
 
 
+function createF(k,lambdaInit)
+	(P, t1, t2) = feas_point( k, lambdaInit )
+	# println((P,t1,t2))
+	if length(feas_point(k,lambdaInit)) == 1
+		println("feas_point fail")
+		return
+	end
+
+	x = getCoeff(P);
+	
+
+	(A,B,C) = formulateGevp(k);
+    F = zeros(size(A,1)+size(C,1),size(A,1)+size(C,1),size(A,3))
+    F[1:size(A,1),1:size(A,1),:] = lambdaInit*B-A
+    F[(size(A,1)+1):end,(size(A,1)+1):end,:] = C
+	return(F)
+end
+
+
+
+
 function formulateGevp(k)
 
 	bet = (sqrt(k)-1)/(sqrt(k)+1);

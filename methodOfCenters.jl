@@ -1,4 +1,7 @@
 using Plotly
+using Convex
+# using SCS
+using Mosek
 include("backTrack.jl")
 
 
@@ -368,8 +371,20 @@ function minMaxEig(F,x)
 	end
 end
 
+function cvxSolve(F)
+	x2 = Variable()
+	x3 = Variable()
+	x4 = Variable()
+	x5 = Variable()
+	x6 = Variable()
+	x7 = Variable()
+	x8 = Variable()
 
+	F[:,:,1]+F[:,:,2]*x2+F[:,:,3]*x3+F[:,:,4]*x4+F[:,:,5]*x5+F[:,:,6]*x6+F[:,:,7]*x7+F[:,:,8]*x8
 
+	p = minimize(logdet(F[:,:,1]+F[:,:,2]*x2+F[:,:,3]*x3+F[:,:,4]*x4+F[:,:,5]*x5+F[:,:,6]*x6+F[:,:,7]*x7+F[:,:,8]*x8))
+	solve!(p,MosekSolver())
+end
 
 function analyticCenter(x0,F, alpha, tol,A,B,C,lambda)
 
@@ -1158,7 +1173,6 @@ function methOfCents( A,B,C, lambda,x, thetaInit, thetaMul,k)
 			# 	println("============ INITIALIZED WITH MOSEK ==============")
 			# end
 
-
 			# println("-=-=-=-=-=- ")
 			# println(genEigChol(Ax,Bx))
 
@@ -1168,6 +1182,7 @@ function methOfCents( A,B,C, lambda,x, thetaInit, thetaMul,k)
   
 		    x = analyticCenter(x,F, .01,10.0^(-3),A,B,C,lambda)
 
+		    x = cvxSolve(x,F)
 
 			# print("After - Cond (lB-A)(x): ")
 			# println(cond(lambda*Bx-Ax))
